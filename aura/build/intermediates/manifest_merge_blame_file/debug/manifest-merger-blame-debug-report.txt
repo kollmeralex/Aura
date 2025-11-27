@@ -4,4 +4,8 @@
 4
 5    <uses-sdk android:minSdkVersion="24" />
 6
-7</manifest>
+7    <uses-permission android:name="android.permission.INTERNET" />
+7-->C:\Users\Alex\AndroidStudioProjects\Aura\aura\src\main\AndroidManifest.xml:3:5-67
+7-->C:\Users\Alex\AndroidStudioProjects\Aura\aura\src\main\AndroidManifest.xml:3:22-64
+8
+9</manifest>

@@ -136,9 +136,9 @@ Die Forschung beleuchtet auch die mit dem Logging verbundenen Risiken. Ein wesen
 | **04** | 13.11. - 19.11. | **Setup & Prototyping:** Projekt-Setup (App-Modul + Bibliotheks-Modul), erste API-Implementierung, Testaufrufe loggen Events nach Logcat. | DONE |
 | **05** | 20.11. - 26.11. | **Implementierung (Kern I):** Kernlogik entwickeln: `logEvent`-Funktion mit automatischer Anreicherung von Metadaten (Timestamp, IDs etc.). | DONE |
 | **06** | 27.11. - 03.12. | **Implementierung (Kern II):** Lokale Speicherung implementieren: Gesammelte Events werden in eine JSON-Datei auf dem Gerät geschrieben. | IN PROGRESS |
-| **07** | 04.12. - 10.12. | **Implementierung (Demo-App):** Entwicklung des Demonstrations-Prototypen (Fitts' Law Experiment) und Integration der AURA-Bibliothek für die Datenerfassung. | NOT DONE |
+| **07** | 04.12. - 10.12. | **Implementierung (Demo-App):** Fitts' Law Experiment mit **Counterbalancing** (Rechtshändig vs. Linkshändig). Implementierung der Logik, die basierend auf Vor-Daten die nächste Condition wählt. | NOT DONE |
 | **08** | 11.12. - 17.12. | **Datenbank-Integration I:** CouchDB-Server aufsetzen, Netzwerk-Schicht in der Bibliothek implementieren (z.B. mit Ktor/Retrofit). | DONE |
-| **09** | 18.12. - 24.12. | **Datenbank-Integration II:** Implementierung des Synchronisierungsmechanismus zum Hochladen der lokalen JSON-Dateien auf den Server. | NOT DONE |
+| **09** | 18.12. - 24.12. | **Datenbank-Integration II (Bidirektional):** Implementierung des **Rückkanals** (Server -> App). Abrufen von User-Daten für Counterbalancing-Entscheidungen. | NOT DONE |
 | **10** | 25.12. - 31.12. | *(Weihnachtspause / Puffer)* | |
 | **11** | 01.01. - 07.01. | **Test & Verfeinerung:** Umfassende Tests der Bibliothek im Demo-Prototypen (inkl. Offline-Szenarien), Debugging und Erstellung der finalen `.aar`-Datei. | NOT DONE |
 | **12** | 08.01. - 14.01. | **Dokumentation & Bericht:** Verfassen der API-Dokumentation und einer Integrationsanleitung. Ausarbeitung des Abschlussberichts. | NOT DONE |
@@ -151,6 +151,18 @@ Die Forschung beleuchtet auch die mit dem Logging verbundenen Risiken. Ein wesen
 ---------
 
 **6. Features & Limitationen**
+
+**Features:**
+*   **Easy Setup:** Einzeilige Initialisierung (`Aura.setupExperiment`).
+*   **Auto-Metadaten:** Automatische Erfassung von Zeitstempel, UserID, etc.
+*   **Offline-First:** Lokale Speicherung (JSON) als Fallback (Work in Progress).
+*   **CouchDB Sync:** Automatische Synchronisierung mit dem Backend.
+*   **NEU: Bidirektionaler Datenfluss:** Abrufen von User-Status vom Server ("Welche Conditions hat User X schon absolviert?").
+*   **NEU: Counterbalancing-Support:** Unterstützung bei der Zuweisung von Experiment-Konditionen (z.B. AB/BA Testing), um Reihenfolgeneffekte zu vermeiden.
+
+**Limitationen:**
+*   Aktuell nur für Android.
+*   Benötigt Netzwerkverbindung für den initialen Status-Abgleich (für Counterbalancing).
 
 ---------
 

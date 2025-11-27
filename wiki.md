@@ -133,11 +133,11 @@ Die Forschung beleuchtet auch die mit dem Logging verbundenen Risiken. Ein wesen
 | **01** | 23.10. - 29.10. | **Kick-off & Einarbeitung:** Projektdefinition finalisieren, Einarbeitung in die Erstellung von Android-Bibliotheken (`.aar`) und die Grundlagen von CouchDB. | DONE |
 | **02** | 30.10. - 05.11. | **Literaturrecherche:** Analyse von existierenden Logging-Frameworks (Related Work) und Best Practices. | DONE |
 | **03** | 06.11. - 12.11. | **Architektur & Design:** Detaillierte Systemarchitektur entwerfen, API-Design (`setupExperiment`, `logEvent`) und JSON-Datenmodell finalisieren. | DONE |
-| **04** | 13.11. - 19.11. | **Setup & Prototyping:** Projekt-Setup (App-Modul + Bibliotheks-Modul), erste API-Implementierung, Testaufrufe loggen Events nach Logcat. | NOT DONE |
-| **05** | 20.11. - 26.11. | **Implementierung (Kern I):** Kernlogik entwickeln: `logEvent`-Funktion mit automatischer Anreicherung von Metadaten (Timestamp, IDs etc.). | NOT DONE |
-| **06** | 27.11. - 03.12. | **Implementierung (Kern II):** Lokale Speicherung implementieren: Gesammelte Events werden in eine JSON-Datei auf dem Gerät geschrieben. | NOT DONE |
+| **04** | 13.11. - 19.11. | **Setup & Prototyping:** Projekt-Setup (App-Modul + Bibliotheks-Modul), erste API-Implementierung, Testaufrufe loggen Events nach Logcat. | DONE |
+| **05** | 20.11. - 26.11. | **Implementierung (Kern I):** Kernlogik entwickeln: `logEvent`-Funktion mit automatischer Anreicherung von Metadaten (Timestamp, IDs etc.). | DONE |
+| **06** | 27.11. - 03.12. | **Implementierung (Kern II):** Lokale Speicherung implementieren: Gesammelte Events werden in eine JSON-Datei auf dem Gerät geschrieben. | IN PROGRESS |
 | **07** | 04.12. - 10.12. | **Implementierung (Demo-App):** Entwicklung des Demonstrations-Prototypen (Fitts' Law Experiment) und Integration der AURA-Bibliothek für die Datenerfassung. | NOT DONE |
-| **08** | 11.12. - 17.12. | **Datenbank-Integration I:** CouchDB-Server aufsetzen, Netzwerk-Schicht in der Bibliothek implementieren (z.B. mit Ktor/Retrofit). | NOT DONE |
+| **08** | 11.12. - 17.12. | **Datenbank-Integration I:** CouchDB-Server aufsetzen, Netzwerk-Schicht in der Bibliothek implementieren (z.B. mit Ktor/Retrofit). | DONE |
 | **09** | 18.12. - 24.12. | **Datenbank-Integration II:** Implementierung des Synchronisierungsmechanismus zum Hochladen der lokalen JSON-Dateien auf den Server. | NOT DONE |
 | **10** | 25.12. - 31.12. | *(Weihnachtspause / Puffer)* | |
 | **11** | 01.01. - 07.01. | **Test & Verfeinerung:** Umfassende Tests der Bibliothek im Demo-Prototypen (inkl. Offline-Szenarien), Debugging und Erstellung der finalen `.aar`-Datei. | NOT DONE |

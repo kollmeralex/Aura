@@ -11,6 +11,10 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.aura.lib.Aura
 
 class MainActivity : AppCompatActivity() {
+    
+    private lateinit var infoText: TextView
+    private lateinit var startButton: Button
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -32,12 +36,12 @@ class MainActivity : AppCompatActivity() {
             setText("1")
         }
         
-        val infoText = TextView(this).apply {
+        infoText = TextView(this).apply {
             text = "Initialize to see condition order."
             setPadding(0, 32, 0, 32)
         }
 
-        val startButton = Button(this).apply {
+        startButton = Button(this).apply {
             text = "Start Experiment"
             isEnabled = false
         }
@@ -74,11 +78,44 @@ class MainActivity : AppCompatActivity() {
             )
             Aura.setupExperiment(config)
 
-            // 2. Get Counterbalanced Order
-            val order = Aura.getSuggestedConditionOrder()
-            infoText.text = "User: $userId\n\nPlanned Order:\n1. ${order.getOrElse(0) { "-" }}\n2. ${order.getOrElse(1) { "-" }}"
+            // 2. Get Server-Aware Counterbalanced Order (NEW: Bidirectional!)
+            infoText.text = "Loading from server..."
+            initButton.isEnabled = false
             
-            startButton.isEnabled = true
+            Aura.getServerAwareConditionOrder(
+                onSuccess = { remainingConditions ->
+                    runOnUiThread {
+                        if (remainingConditions.isEmpty()) {
+                            infoText.text = "User: $userId\n\n✅ All conditions completed!"
+                            startButton.text = "Experiment Done"
+                            startButton.isEnabled = false
+                        } else {
+                            val allConditions = Aura.getSuggestedConditionOrder()
+                            val completed = allConditions.filter { it !in remainingConditions }
+                            
+                            infoText.text = buildString {
+                                append("User: $userId\n\n")
+                                if (completed.isNotEmpty()) {
+                                    append("✅ Completed: ${completed.joinToString()}\n")
+                                }
+                                append("📋 Remaining:\n")
+                                remainingConditions.forEachIndexed { index, condition ->
+                                    append("${index + 1}. $condition\n")
+                                }
+                            }
+                            startButton.isEnabled = true
+                        }
+                        initButton.isEnabled = true
+                    }
+                },
+                onError = { e ->
+                    runOnUiThread {
+                        // Fallback already handled in Aura - this won't be called normally
+                        Toast.makeText(this, "Using offline mode", Toast.LENGTH_SHORT).show()
+                        initButton.isEnabled = true
+                    }
+                }
+            )
         }
 
         startButton.setOnClickListener {

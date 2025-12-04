@@ -63,9 +63,9 @@ afterEvaluate {
         publications {
             register<MavenPublication>("release") {
                 from(components["release"])
-                groupId = "com.github.User" // JitPack überschreibt das automatisch
+                groupId = "com.github.kollmeralex"
                 artifactId = "aura"
-                version = "1.0"
+                version = "1.0.0"
             }
         }
     }

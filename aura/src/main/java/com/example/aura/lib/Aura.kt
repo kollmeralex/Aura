@@ -254,6 +254,433 @@ object Aura {
         )
     }
 
+    /**
+     * Generic query method for flexible filtering of events from CouchDB.
+     *
+     * Allows complex queries using CouchDB Mango Query syntax with custom selectors,
+     * field projection, result limiting, and sorting.
+     *
+     * @param selector Mango Query selector (e.g., mapOf("user_id" to "user123", "event_name" to "click"))
+     * @param fields Optional list of fields to return (null = all fields)
+     * @param limit Optional limit for number of results (null = no limit)
+     * @param sort Optional sort specification (e.g., listOf(mapOf("timestamp" to "desc")))
+     * @return List of matching LogEntry objects
+     * @throws IllegalStateException if Aura not initialized
+     * @throws Exception on network or server errors
+     *
+     * Example:
+     * ```kotlin
+     * val selector = mapOf(
+     *     "user_id" to "user123",
+     *     "condition" to "LeftHand",
+     *     "payload.target_size" to "small"
+     * )
+     * val events = Aura.queryEvents(selector, limit = 100)
+     * ```
+     */
+    suspend fun queryEvents(
+        selector: Map<String, Any>,
+        fields: List<String>? = null,
+        limit: Int? = null,
+        sort: List<Map<String, String>>? = null
+    ): List<LogEntry> = withContext(Dispatchers.IO) {
+        val config = currentConfig ?: throw IllegalStateException("Aura not initialized! Call setupExperiment first.")
+        val currentApi = api ?: throw IllegalStateException("API not initialized!")
+        val auth = authHeader ?: throw IllegalStateException("Auth header not set!")
+
+        val query = MangoQuery(
+            selector = selector,
+            fields = fields,
+            limit = limit,
+            sort = sort
+        )
+
+        try {
+            val response = currentApi.findDocuments(config.dbName, auth, query).execute()
+            if (response.isSuccessful) {
+                val findResponse = response.body()
+                val events = findResponse?.docs ?: emptyList()
+                Log.d(TAG, "Query returned ${events.size} events")
+                events
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e(TAG, "Query failed: ${response.code()} - $errorBody")
+                throw Exception("Query failed with HTTP ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Query error", e)
+            throw e
+        }
+    }
+
+    /**
+     * Callback-based alternative for queryEvents (non-coroutine users).
+     *
+     * @see queryEvents
+     */
+    fun queryEvents(
+        selector: Map<String, Any>,
+        fields: List<String>? = null,
+        limit: Int? = null,
+        sort: List<Map<String, String>>? = null,
+        onSuccess: (List<LogEntry>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val config = currentConfig ?: run {
+            onError(IllegalStateException("Aura not initialized! Call setupExperiment first."))
+            return
+        }
+        val currentApi = api ?: run {
+            onError(IllegalStateException("API not initialized!"))
+            return
+        }
+        val auth = authHeader ?: run {
+            onError(IllegalStateException("Auth header not set!"))
+            return
+        }
+
+        val query = MangoQuery(
+            selector = selector,
+            fields = fields,
+            limit = limit,
+            sort = sort
+        )
+
+        Thread {
+            try {
+                val response = currentApi.findDocuments(config.dbName, auth, query).execute()
+                if (response.isSuccessful) {
+                    val findResponse = response.body()
+                    val events = findResponse?.docs ?: emptyList()
+                    Log.d(TAG, "Query returned ${events.size} events")
+                    onSuccess(events)
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    Log.e(TAG, "Query failed: ${response.code()} - $errorBody")
+                    onError(Exception("Query failed with HTTP ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Query error", e)
+                onError(e)
+            }
+        }.start()
+    }
+
+    /**
+     * Get all events of a specific type for the current experiment and user.
+     *
+     * @param eventName The event name to filter by (e.g., "button_click", "target_hit")
+     * @param limit Optional maximum number of results
+     * @return List of matching LogEntry objects
+     *
+     * Example:
+     * ```kotlin
+     * val clicks = Aura.getEventsByType("button_click", limit = 50)
+     * Log.d("AURA", "Found ${clicks.size} click events")
+     * ```
+     */
+    suspend fun getEventsByType(eventName: String, limit: Int? = null): List<LogEntry> {
+        val config = currentConfig ?: throw IllegalStateException("Aura not initialized!")
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "event_name" to eventName
+        )
+        return queryEvents(selector, limit = limit, sort = listOf(mapOf("timestamp" to "asc")))
+    }
+
+    /**
+     * Callback-based alternative for getEventsByType.
+     * @see getEventsByType
+     */
+    fun getEventsByType(
+        eventName: String,
+        limit: Int? = null,
+        onSuccess: (List<LogEntry>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val config = currentConfig ?: run {
+            onError(IllegalStateException("Aura not initialized!"))
+            return
+        }
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "event_name" to eventName
+        )
+        queryEvents(
+            selector = selector,
+            limit = limit,
+            sort = listOf(mapOf("timestamp" to "asc")),
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
+    /**
+     * Get all events from a specific experimental condition.
+     *
+     * @param condition The condition name (e.g., "LeftHand", "RightHand")
+     * @param limit Optional maximum number of results
+     * @return List of matching LogEntry objects
+     *
+     * Example:
+     * ```kotlin
+     * val leftHandEvents = Aura.getEventsByCondition("LeftHand")
+     * ```
+     */
+    suspend fun getEventsByCondition(condition: String, limit: Int? = null): List<LogEntry> {
+        val config = currentConfig ?: throw IllegalStateException("Aura not initialized!")
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "condition" to condition
+        )
+        return queryEvents(selector, limit = limit, sort = listOf(mapOf("timestamp" to "asc")))
+    }
+
+    /**
+     * Callback-based alternative for getEventsByCondition.
+     * @see getEventsByCondition
+     */
+    fun getEventsByCondition(
+        condition: String,
+        limit: Int? = null,
+        onSuccess: (List<LogEntry>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val config = currentConfig ?: run {
+            onError(IllegalStateException("Aura not initialized!"))
+            return
+        }
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "condition" to condition
+        )
+        queryEvents(
+            selector = selector,
+            limit = limit,
+            sort = listOf(mapOf("timestamp" to "asc")),
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
+    /**
+     * Get all events for the current experiment and user.
+     *
+     * @param limit Optional maximum number of results
+     * @return List of all LogEntry objects for this user
+     *
+     * Example:
+     * ```kotlin
+     * val allEvents = Aura.getAllEvents(limit = 100)
+     * Log.d("AURA", "User has logged ${allEvents.size} events")
+     * ```
+     */
+    suspend fun getAllEvents(limit: Int? = null): List<LogEntry> {
+        val config = currentConfig ?: throw IllegalStateException("Aura not initialized!")
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID
+        )
+        return queryEvents(selector, limit = limit, sort = listOf(mapOf("timestamp" to "asc")))
+    }
+
+    /**
+     * Callback-based alternative for getAllEvents.
+     * @see getAllEvents
+     */
+    fun getAllEvents(
+        limit: Int? = null,
+        onSuccess: (List<LogEntry>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val config = currentConfig ?: run {
+            onError(IllegalStateException("Aura not initialized!"))
+            return
+        }
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID
+        )
+        queryEvents(
+            selector = selector,
+            limit = limit,
+            sort = listOf(mapOf("timestamp" to "asc")),
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
+    /**
+     * Get events logged after a specific timestamp.
+     *
+     * @param timestamp Unix millisecond timestamp (events after this time will be returned)
+     * @param limit Optional maximum number of results
+     * @return List of matching LogEntry objects
+     *
+     * Example:
+     * ```kotlin
+     * val lastHour = System.currentTimeMillis() - 3600000
+     * val recent = Aura.getEventsSince(lastHour)
+     * Log.d("AURA", "Events in last hour: ${recent.size}")
+     * ```
+     */
+    suspend fun getEventsSince(timestamp: Long, limit: Int? = null): List<LogEntry> {
+        val config = currentConfig ?: throw IllegalStateException("Aura not initialized!")
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "timestamp" to mapOf("\$gte" to timestamp)
+        )
+        return queryEvents(selector, limit = limit, sort = listOf(mapOf("timestamp" to "asc")))
+    }
+
+    /**
+     * Callback-based alternative for getEventsSince.
+     * @see getEventsSince
+     */
+    fun getEventsSince(
+        timestamp: Long,
+        limit: Int? = null,
+        onSuccess: (List<LogEntry>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val config = currentConfig ?: run {
+            onError(IllegalStateException("Aura not initialized!"))
+            return
+        }
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "timestamp" to mapOf("\$gte" to timestamp)
+        )
+        queryEvents(
+            selector = selector,
+            limit = limit,
+            sort = listOf(mapOf("timestamp" to "asc")),
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
+    /**
+     * Get events within a specific time range.
+     *
+     * @param startTime Unix millisecond timestamp (inclusive start)
+     * @param endTime Unix millisecond timestamp (inclusive end)
+     * @param limit Optional maximum number of results
+     * @return List of matching LogEntry objects
+     *
+     * Example:
+     * ```kotlin
+     * val yesterday = System.currentTimeMillis() - 86400000
+     * val today = System.currentTimeMillis()
+     * val events = Aura.getEventsBetween(yesterday, today)
+     * ```
+     */
+    suspend fun getEventsBetween(startTime: Long, endTime: Long, limit: Int? = null): List<LogEntry> {
+        val config = currentConfig ?: throw IllegalStateException("Aura not initialized!")
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "timestamp" to mapOf(
+                "\$gte" to startTime,
+                "\$lte" to endTime
+            )
+        )
+        return queryEvents(selector, limit = limit, sort = listOf(mapOf("timestamp" to "asc")))
+    }
+
+    /**
+     * Callback-based alternative for getEventsBetween.
+     * @see getEventsBetween
+     */
+    fun getEventsBetween(
+        startTime: Long,
+        endTime: Long,
+        limit: Int? = null,
+        onSuccess: (List<LogEntry>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val config = currentConfig ?: run {
+            onError(IllegalStateException("Aura not initialized!"))
+            return
+        }
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "timestamp" to mapOf(
+                "\$gte" to startTime,
+                "\$lte" to endTime
+            )
+        )
+        queryEvents(
+            selector = selector,
+            limit = limit,
+            sort = listOf(mapOf("timestamp" to "asc")),
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
+    /**
+     * Get events filtered by a specific payload attribute value.
+     *
+     * Useful for querying events with specific data in their payload field.
+     *
+     * @param key The payload key to filter by (e.g., "button_id", "target_size")
+     * @param value The value to match (can be String, Int, Boolean, etc.)
+     * @param limit Optional maximum number of results
+     * @return List of matching LogEntry objects
+     *
+     * Example:
+     * ```kotlin
+     * val smallTargets = Aura.getEventsByPayload("target_size", "small")
+     * val submitClicks = Aura.getEventsByPayload("button_id", "submit_btn")
+     * ```
+     */
+    suspend fun getEventsByPayload(key: String, value: Any, limit: Int? = null): List<LogEntry> {
+        val config = currentConfig ?: throw IllegalStateException("Aura not initialized!")
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "payload.$key" to value
+        )
+        return queryEvents(selector, limit = limit, sort = listOf(mapOf("timestamp" to "asc")))
+    }
+
+    /**
+     * Callback-based alternative for getEventsByPayload.
+     * @see getEventsByPayload
+     */
+    fun getEventsByPayload(
+        key: String,
+        value: Any,
+        limit: Int? = null,
+        onSuccess: (List<LogEntry>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val config = currentConfig ?: run {
+            onError(IllegalStateException("Aura not initialized!"))
+            return
+        }
+        val selector = mapOf(
+            "user_id" to config.userID,
+            "experiment_id" to config.experimentID,
+            "payload.$key" to value
+        )
+        queryEvents(
+            selector = selector,
+            limit = limit,
+            sort = listOf(mapOf("timestamp" to "asc")),
+            onSuccess = onSuccess,
+            onError = onError
+        )
+    }
+
     // ==================== END BIDIRECTIONAL ====================
 
     fun logEvent(eventName: String, data: Map<String, Any>) {

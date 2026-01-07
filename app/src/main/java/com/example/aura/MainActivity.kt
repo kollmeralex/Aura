@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity() {
                         initButton.isEnabled = true
                     }
                 },
-                onError = { e ->
+                onError = { _ ->
                     runOnUiThread {
                         // Fallback already handled in Aura - this won't be called normally
                         Toast.makeText(this, "Using offline mode", Toast.LENGTH_SHORT).show()

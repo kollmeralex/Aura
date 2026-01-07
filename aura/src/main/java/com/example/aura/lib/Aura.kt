@@ -102,7 +102,7 @@ object Aura {
         return if (idVal % 2 == 0) {
             conditions 
         } else {
-            conditions.reversed() 
+            conditions.asReversed() // Use asReversed() for API compatibility
         }
     }
 

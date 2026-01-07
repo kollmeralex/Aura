@@ -3,7 +3,9 @@ package com.example.aura
 import android.animation.ObjectAnimator
 import android.graphics.Color
 import android.os.Bundle
-import android.widget.*
+import android.widget.FrameLayout
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.animation.doOnEnd
@@ -14,10 +16,6 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-/**
- * Fitts' Law Experiment
- * Tests target acquisition across three size conditions
- */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var userIdText: TextView
@@ -90,8 +88,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initializeExperiment() {
         val userId = userIdInput.text.toString().ifBlank { 
-            Toast.makeText(this, "Please enter a Participant ID", Toast.LENGTH_SHORT).show()
-            returnparticipant ID", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Please enter a participant ID", Toast.LENGTH_SHORT).show()
             return
         }
         
@@ -123,9 +120,10 @@ class MainActivity : AppCompatActivity() {
             nextConditionButton.isEnabled = true
             viewLogsButton.isEnabled = true
             
-            instructionText.text = "Ready to start\n\nCondition order: ${conditionOrder.joinToString(" → ")}"
+            instructionText.text = "Ready to start\n\nCondition order: ${conditionOrder.joinToString(" -> ")}"
             
-            Toast.makeText(this, "Experiment initialized", Toast.LENGTH_SHORT
+            Toast.makeText(this, "Experiment initialized", Toast.LENGTH_SHORT).show()
+            
         } catch (e: Exception) {
             Toast.makeText(this, "Initialization failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -133,7 +131,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun startNextCondition() {
         if (currentConditionIndex >= conditionOrder.size) {
-            // Experiment complete
             finishExperiment()
             return
         }
@@ -141,33 +138,22 @@ class MainActivity : AppCompatActivity() {
         val conditionName = conditionOrder[currentConditionIndex]
         val condition = conditions.find { it.name == conditionName } ?: return
         
-        // Set condition in AURA
         Aura.setCondition(conditionName)
         
-        // Log condition start
         Aura.logEvent("condition_started", mapOf(
             "condition" to conditionName,
             "target_size_dp" to condition.sizeDp,
             "condition_index" to currentConditionIndex
         ))
         
-        // Update UI
-        conditionText.text = "Current Condition: $conditionName (${condition.sizeDp}dp)"
+        conditionText.text = "Condition: $conditionName (${condition.sizeDp}dp)"
         currentTrial = 0
         trialResults.clear()
         
-        // Show instruction
         showConditionInstruction(condition)
     }
 
-    private fun showConditionInstruction(condition: TargetCondition) {
-        AlertDialog.Builder(this)
-            .setTitle("🎯 ${condition.name} Target Condition")
-            .setMessage(
-                "Target Size: ${condition.sizeDp}dp\n\n" +
-                "Instructions:\n" +
-                "• Tap the colored targets as quickly as possible\n" +
-                "• Complete $totalTrialsPerConditionCondition) {
+    private fun showConditionInstruction(condition: Condition) {
         AlertDialog.Builder(this)
             .setTitle("${condition.name} Targets")
             .setMessage(
@@ -187,13 +173,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun startTrials(condition: Condition) {
         nextConditionButton.isEnabled = false
-        experimentContainer.removeAllViews()    finishCondition()
-            return
-        }
-        
-        currentTrial++
-        
-        // Remove previous targetCondition) {
+        experimentContainer.removeAllViews()
+        showNextTarget(condition)
+    }
+
+    private fun showNextTarget(condition: Condition) {
         if (currentTrial >= trialsPerCondition) {
             finishCondition()
             return
@@ -272,30 +256,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getTargetColor(): Int {
-        val colors = listOf("#1976D2", "#D32F2F", "#388E3C", "#F57C00", "#7B1FA2", "#0097A7"val avgReactionTime = trialResults.map { it.reactionTimeMs }.average()
-        val accuracy = (trialResults.count { it.accuracy }.toDouble() / trialResults.size) * 100
-        
-        val conditionName = conditionOrder[currentConditionIndex]
-        
-        // Log condition completion
-        Aura.logEvent("condition_completed", mapOf(
-            "condition" to conditionName,
-            "avg_reaction_time_ms" to avgReactionTime,
-            "accuracy_percent" to accuracy,
-            "total_trials" to trialResults.size
-        ))
-        
-        // Show results
-        val resultsText = """
-            ✅ Condition Complete!
-            
-            Condition: $conditionName
-            Trials: ${trialResults.size}
-            Avg Reaction Time: ${avgReactionTime.toInt()}ms
-            Accuracy: ${accuracy.toInt()}%
-        """.trimIndent()
-        
-        instructionText.text = resultsText
+        val colors = listOf("#1976D2", "#D32F2F", "#388E3C", "#F57C00", "#7B1FA2", "#0097A7")
+        return Color.parseColor(colors.random())
+    }
+
+    private fun finishCondition() {
         experimentContainer.removeAllViews()
         
         val avgTime = trialResults.map { it.reactionTime }.average()
@@ -347,11 +312,16 @@ class MainActivity : AppCompatActivity() {
             .setMessage(
                 "Study: Fitts' Law\n" +
                 "Conditions: ${conditions.map { it.name }.joinToString(", ")}\n" +
-                "Order: ${conditionOrder.joinToString(" → ")}\n" +
+                "Order: ${conditionOrder.joinToString(" -> ")}\n" +
                 "Trials per condition: $trialsPerCondition\n\n" +
                 "Data logged to CouchDB:\n" +
                 "- experiment_started\n" +
                 "- condition_started\n" +
                 "- target_hit (per trial)\n" +
                 "- condition_completed\n" +
-                "-
+                "- experiment_completed"
+            )
+            .setPositiveButton("OK", null)
+            .show()
+    }
+}

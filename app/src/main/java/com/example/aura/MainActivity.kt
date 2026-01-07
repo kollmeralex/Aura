@@ -1,325 +1,402 @@
 package com.example.aura
 
+import android.animation.ObjectAnimator
+import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
-import android.widget.Toast
+import android.view.Gravity
+import android.view.View
+import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.animation.doOnEnd
 import com.example.aura.lib.Aura
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.textfield.TextInputEditText
+import kotlin.math.pow
+import kotlin.math.sqrt
+import kotlin.random.Random
 
 /**
- * Demo App für die AURA Logging-Bibliothek v1.1.0
+ * Fitts' Law Experiment App powered by AURA v1.1.1
  * 
- * Diese App testet ALLE Features über JitPack:
- * - setupExperiment() mit availableConditions
- * - logEvent() mit Payload
- * - setCondition()
- * - getSuggestedConditionOrder() (Counterbalancing)
- * - getCompletedConditions() (Bidirektional: Server → App)
- * - getServerAwareConditionOrder() (Smart Counterbalancing)
+ * A realistic HCI research experiment demonstrating:
+ * - Three target size conditions (Small: 48dp, Medium: 96dp, Large: 144dp)
+ * - Reaction time and accuracy measurement
+ * - Counterbalanced condition order
+ * - Automatic logging to CouchDB via AURA
  * 
- * implementation("com.github.kollmeralex:Aura:v1.1.0")
+ * Implementation: com.github.kollmeralex:Aura:v1.1.1
  */
 class MainActivity : AppCompatActivity() {
 
-    private var eventCount = 0
-    private lateinit var statusTextView: TextView
-    private lateinit var logTextView: TextView
-    private lateinit var userIdInput: EditText
+    // UI Components
+    private lateinit var userIdText: TextView
+    private lateinit var conditionText: TextView
+    private lateinit var userIdInput: TextInputEditText
+    private lateinit var setupButton: MaterialButton
+    private lateinit var experimentContainer: FrameLayout
+    private lateinit var instructionText: TextView
+    private lateinit var nextConditionButton: MaterialButton
+    private lateinit var viewLogsButton: MaterialButton
+
+    // Experiment State
+    private var isExperimentRunning = false
+    private var currentConditionIndex = 0
+    private var currentTrial = 0
+    private var targetStartTime = 0L
+    private var totalTrialsPerCondition = 10
+    private var currentTargetButton: MaterialButton? = null
+    
+    // Condition Definitions
+    private val conditions = listOf(
+        TargetCondition("Small", 48),
+        TargetCondition("Medium", 96),
+        TargetCondition("Large", 144)
+    )
+    private var conditionOrder = listOf<String>()
+
+    // Metrics
+    private var trialResults = mutableListOf<TrialResult>()
+
+    data class TargetCondition(val name: String, val sizeDp: Int)
+    data class TrialResult(
+        val condition: String,
+        val trialNumber: Int,
+        val reactionTimeMs: Long,
+        val distance: Double,
+        val targetSize: Int,
+        val accuracy: Boolean
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setupUI()
-    }
-
-    private fun setupUI() {
-        val scrollView = ScrollView(this)
+        setContentView(R.layout.activity_main)
         
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 48, 48, 48)
-        }
-
-        // Title
-        val titleTextView = TextView(this).apply {
-            text = "🔬 AURA v1.1.0 Feature Test"
-            textSize = 24f
-            setTextColor(android.graphics.Color.parseColor("#6200EE"))
-            setPadding(0, 0, 0, 16)
-        }
-        layout.addView(titleTextView)
-
-        // Subtitle
-        val subtitleTextView = TextView(this).apply {
-            text = "via JitPack: com.github.kollmeralex:Aura:v1.1.0"
-            textSize = 12f
-            setTextColor(android.graphics.Color.GRAY)
-            setPadding(0, 0, 0, 32)
-        }
-        layout.addView(subtitleTextView)
-
-        // User ID Input
-        val userIdLabel = TextView(this).apply {
-            text = "User ID:"
-            textSize = 14f
-        }
-        layout.addView(userIdLabel)
-
-        userIdInput = EditText(this).apply {
-            hint = "z.B. 1, 2, 3..."
-            setText("1")
-        }
-        layout.addView(userIdInput)
-
-        // Status display
-        statusTextView = TextView(this).apply {
-            text = "Status: Nicht initialisiert"
-            textSize = 14f
-            setTextColor(android.graphics.Color.DKGRAY)
-            setPadding(0, 16, 0, 16)
-        }
-        layout.addView(statusTextView)
-
-        // ===== BUTTON 1: Setup Experiment =====
-        val setupButton = Button(this).apply {
-            text = "1️⃣ setupExperiment()"
-            setOnClickListener { testSetupExperiment() }
-        }
-        layout.addView(setupButton)
-
-        // ===== BUTTON 2: Log Event =====
-        val logEventButton = Button(this).apply {
-            text = "2️⃣ logEvent()"
-            setOnClickListener { testLogEvent() }
-        }
-        layout.addView(logEventButton)
-
-        // ===== BUTTON 3: Set Condition =====
-        val setConditionButton = Button(this).apply {
-            text = "3️⃣ setCondition()"
-            setOnClickListener { testSetCondition() }
-        }
-        layout.addView(setConditionButton)
-
-        // ===== BUTTON 4: Get Suggested Order (Local) =====
-        val suggestedOrderButton = Button(this).apply {
-            text = "4️⃣ getSuggestedConditionOrder()"
-            setOnClickListener { testGetSuggestedConditionOrder() }
-        }
-        layout.addView(suggestedOrderButton)
-
-        // ===== BUTTON 5: Get Completed Conditions (Server) =====
-        val completedConditionsButton = Button(this).apply {
-            text = "5️⃣ getCompletedConditions() [Server]"
-            setOnClickListener { testGetCompletedConditions() }
-        }
-        layout.addView(completedConditionsButton)
-
-        // ===== BUTTON 6: Get Server-Aware Order =====
-        val serverAwareButton = Button(this).apply {
-            text = "6️⃣ getServerAwareConditionOrder()"
-            setOnClickListener { testGetServerAwareConditionOrder() }
-        }
-        layout.addView(serverAwareButton)
-
-        // ===== Log Output Area =====
-        val logLabel = TextView(this).apply {
-            text = "📋 Log Output:"
-            textSize = 14f
-            setPadding(0, 32, 0, 8)
-        }
-        layout.addView(logLabel)
-
-        logTextView = TextView(this).apply {
-            text = ""
-            textSize = 12f
-            setBackgroundColor(android.graphics.Color.parseColor("#F5F5F5"))
-            setPadding(16, 16, 16, 16)
-            minHeight = 300
-        }
-        layout.addView(logTextView)
-
-        // Clear Log Button
-        val clearButton = Button(this).apply {
-            text = "🗑️ Clear Log"
-            setOnClickListener { 
-                logTextView.text = ""
-                eventCount = 0
-            }
-        }
-        layout.addView(clearButton)
-
-        scrollView.addView(layout)
-        setContentView(scrollView)
+        initializeViews()
+        setupClickListeners()
     }
 
-    // ==================== TEST FUNCTIONS ====================
+    private fun initializeViews() {
+        userIdText = findViewById(R.id.userIdText)
+        conditionText = findViewById(R.id.conditionText)
+        userIdInput = findViewById(R.id.userIdInput)
+        setupButton = findViewById(R.id.setupButton)
+        experimentContainer = findViewById(R.id.experimentContainer)
+        instructionText = findViewById(R.id.instructionText)
+        nextConditionButton = findViewById(R.id.nextConditionButton)
+        viewLogsButton = findViewById(R.id.viewLogsButton)
+        
+        // Initially disable experiment controls
+        nextConditionButton.isEnabled = false
+        viewLogsButton.isEnabled = false
+    }
 
-    private fun testSetupExperiment() {
-        val userId = userIdInput.text.toString().ifBlank { "1" }
+    private fun setupClickListeners() {
+        setupButton.setOnClickListener {
+            initializeExperiment()
+        }
+        
+        nextConditionButton.setOnClickListener {
+            startNextCondition()
+        }
+        
+        viewLogsButton.setOnClickListener {
+            viewExperimentLogs()
+        }
+    }
+
+    private fun initializeExperiment() {
+        val userId = userIdInput.text.toString().ifBlank { 
+            Toast.makeText(this, "Please enter a Participant ID", Toast.LENGTH_SHORT).show()
+            return
+        }
         
         try {
+            // Setup AURA with three target size conditions
             val config = Aura.Config(
                 context = applicationContext,
-                experimentID = "JitPack_v1.1.0_Test",
+                experimentID = "Fitts_Law_Exp",
                 userID = userId,
                 couchDbUrl = "https://couchdb.hci.uni-hannover.de",
                 dbName = "aura",
                 username = BuildConfig.COUCHDB_USER,
                 password = BuildConfig.COUCHDB_PASSWORD,
-                availableConditions = listOf("ConditionA", "ConditionB", "ConditionC")
+                availableConditions = conditions.map { it.name }
             )
             
             Aura.setupExperiment(config)
             
-            statusTextView.text = "✅ Status: Initialisiert (User: $userId)"
-            appendLog("✅ setupExperiment() erfolgreich!")
-            appendLog("   - ExperimentID: JitPack_v1.1.0_Test")
-            appendLog("   - UserID: $userId")
-            appendLog("   - Conditions: A, B, C")
+            // Get counterbalanced condition order
+            conditionOrder = Aura.getSuggestedConditionOrder()
             
-            Toast.makeText(this, "AURA initialisiert!", Toast.LENGTH_SHORT).show()
+            // Log experiment start
+            Aura.logEvent("experiment_started", mapOf(
+                "participant_id" to userId,
+                "condition_order" to conditionOrder.joinToString(","),
+                "trials_per_condition" to totalTrialsPerCondition,
+                "device" to android.os.Build.MODEL,
+                "android_version" to android.os.Build.VERSION.RELEASE
+            ))
+            
+            // Update UI
+            userIdText.text = "Participant ID: $userId"
+            userIdInput.isEnabled = false
+            setupButton.isEnabled = false
+            nextConditionButton.isEnabled = true
+            viewLogsButton.isEnabled = true
+            
+            instructionText.text = "✅ Ready! Click 'Next Condition' to start\n\nCondition Order: ${conditionOrder.joinToString(" → ")}"
+            
+            Toast.makeText(this, "Experiment initialized! Order: $conditionOrder", Toast.LENGTH_LONG).show()
+            
         } catch (e: Exception) {
-            statusTextView.text = "❌ Status: Fehler"
-            appendLog("❌ setupExperiment() FEHLER: ${e.message}")
-            Log.e("AURA_TEST", "Setup failed", e)
+            Toast.makeText(this, "Initialization failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
-    private fun testLogEvent() {
-        eventCount++
+    private fun startNextCondition() {
+        if (currentConditionIndex >= conditionOrder.size) {
+            // Experiment complete
+            finishExperiment()
+            return
+        }
         
-        try {
-            val payload = mapOf(
-                "event_number" to eventCount,
-                "test_type" to "jitpack_v1.1.0",
-                "timestamp" to System.currentTimeMillis(),
-                "device" to android.os.Build.MODEL
+        val conditionName = conditionOrder[currentConditionIndex]
+        val condition = conditions.find { it.name == conditionName } ?: return
+        
+        // Set condition in AURA
+        Aura.setCondition(conditionName)
+        
+        // Log condition start
+        Aura.logEvent("condition_started", mapOf(
+            "condition" to conditionName,
+            "target_size_dp" to condition.sizeDp,
+            "condition_index" to currentConditionIndex
+        ))
+        
+        // Update UI
+        conditionText.text = "Current Condition: $conditionName (${condition.sizeDp}dp)"
+        currentTrial = 0
+        trialResults.clear()
+        
+        // Show instruction
+        showConditionInstruction(condition)
+    }
+
+    private fun showConditionInstruction(condition: TargetCondition) {
+        AlertDialog.Builder(this)
+            .setTitle("🎯 ${condition.name} Target Condition")
+            .setMessage(
+                "Target Size: ${condition.sizeDp}dp\n\n" +
+                "Instructions:\n" +
+                "• Tap the colored targets as quickly as possible\n" +
+                "• Complete $totalTrialsPerCondition trials\n" +
+                "• Try to be both fast AND accurate\n\n" +
+                "Ready to start?"
             )
-            
-            Aura.logEvent("test_event", payload)
-            
-            appendLog("✅ logEvent() #$eventCount gesendet!")
-            appendLog("   - Payload: $payload")
-            
-            Toast.makeText(this, "Event #$eventCount logged!", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            appendLog("❌ logEvent() FEHLER: ${e.message}")
-            Log.e("AURA_TEST", "LogEvent failed", e)
-        }
+            .setPositiveButton("Start") { _, _ ->
+                startTrials(condition)
+            }
+            .setCancelable(false)
+            .show()
     }
 
-    private fun testSetCondition() {
-        try {
-            val conditions = listOf("ConditionA", "ConditionB", "ConditionC")
-            val randomCondition = conditions.random()
-            
-            Aura.setCondition(randomCondition)
-            
-            appendLog("✅ setCondition('$randomCondition') erfolgreich!")
-            
-            Toast.makeText(this, "Condition: $randomCondition", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            appendLog("❌ setCondition() FEHLER: ${e.message}")
-            Log.e("AURA_TEST", "SetCondition failed", e)
-        }
-    }
-
-    private fun testGetSuggestedConditionOrder() {
-        try {
-            val order = Aura.getSuggestedConditionOrder()
-            
-            appendLog("✅ getSuggestedConditionOrder():")
-            appendLog("   - Reihenfolge: $order")
-            appendLog("   - (Basiert auf UserID für Counterbalancing)")
-            
-            Toast.makeText(this, "Order: $order", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            appendLog("❌ getSuggestedConditionOrder() FEHLER: ${e.message}")
-            Log.e("AURA_TEST", "GetSuggestedOrder failed", e)
-        }
-    }
-
-    private fun testGetCompletedConditions() {
-        appendLog("⏳ getCompletedConditions() - Lade vom Server...")
+    private fun startTrials(condition: TargetCondition) {
+        isExperimentRunning = true
+        nextConditionButton.isEnabled = false
+        experimentContainer.removeAllViews()
         
-        try {
-            Aura.getCompletedConditions(
-                onSuccess = { completedConditions ->
-                    runOnUiThread {
-                        appendLog("✅ getCompletedConditions() [BIDIREKTIONAL]:")
-                        if (completedConditions.isEmpty()) {
-                            appendLog("   - Keine Conditions abgeschlossen")
-                        } else {
-                            appendLog("   - Abgeschlossen: $completedConditions")
-                        }
-                        Toast.makeText(this, "Completed: $completedConditions", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                onError = { error ->
-                    runOnUiThread {
-                        appendLog("❌ getCompletedConditions() FEHLER: ${error.message}")
-                    }
+        showNextTarget(condition)
+    }
+
+    private fun showNextTarget(condition: TargetCondition) {
+        if (currentTrial >= totalTrialsPerCondition) {
+            // Condition complete
+            finishCondition()
+            return
+        }
+        
+        currentTrial++
+        
+        // Remove previous target
+        currentTargetButton?.let { experimentContainer.removeView(it) }
+        
+        // Create new target button
+        val sizePx = (condition.sizeDp * resources.displayMetrics.density).toInt()
+        val target = MaterialButton(this).apply {
+            layoutParams = FrameLayout.LayoutParams(sizePx, sizePx)
+            text = "$currentTrial"
+            textSize = 16f
+            cornerRadius = sizePx / 2
+            setBackgroundColor(getRandomColor())
+            elevation = 8f
+        }
+        
+        // Random position
+        val maxX = experimentContainer.width - sizePx
+        val maxY = experimentContainer.height - sizePx
+        val randomX = Random.nextInt(0, maxX.coerceAtLeast(1))
+        val randomY = Random.nextInt(0, maxY.coerceAtLeast(1))
+        
+        target.x = randomX.toFloat()
+        target.y = randomY.toFloat()
+        
+        // Calculate distance from previous target (Fitts' Law parameter)
+        val distance = currentTargetButton?.let {
+            val dx = randomX - it.x
+            val dy = randomY - it.y
+            sqrt(dx.pow(2) + dy.pow(2))
+        } ?: 0.0
+        
+        targetStartTime = System.currentTimeMillis()
+        
+        target.setOnClickListener {
+            val reactionTime = System.currentTimeMillis() - targetStartTime
+            
+            // Record trial result
+            val result = TrialResult(
+                condition = condition.name,
+                trialNumber = currentTrial,
+                reactionTimeMs = reactionTime,
+                distance = distance,
+                targetSize = condition.sizeDp,
+                accuracy = true // Hit
+            )
+            trialResults.add(result)
+            
+            // Log to AURA
+            Aura.logEvent("target_hit", mapOf(
+                "condition" to condition.name,
+                "trial" to currentTrial,
+                "reaction_time_ms" to reactionTime,
+                "distance_px" to distance,
+                "target_size_dp" to condition.sizeDp,
+                "target_size_px" to sizePx,
+                "index_of_difficulty" to calculateIndexOfDifficulty(distance, sizePx.toDouble()),
+                "accuracy" to "hit"
+            ))
+            
+            // Visual feedback
+            target.setBackgroundColor(Color.parseColor("#4CAF50"))
+            
+            // Animate and show next
+            ObjectAnimator.ofFloat(target, "alpha", 1f, 0f).apply {
+                duration = 200
+                doOnEnd { showNextTarget(condition) }
+                start()
+            }
+        }
+        
+        currentTargetButton = target
+        experimentContainer.addView(target)
+        
+        // Fade in animation
+        target.alpha = 0f
+        ObjectAnimator.ofFloat(target, "alpha", 0f, 1f).apply {
+            duration = 300
+            start()
+        }
+    }
+
+    private fun calculateIndexOfDifficulty(distance: Double, targetSize: Double): Double {
+        // Fitts' Law: ID = log2(D/W + 1)
+        return kotlin.math.log2((distance / targetSize) + 1)
+    }
+
+    private fun getRandomColor(): Int {
+        val colors = listOf(
+            "#2196F3", "#FF5722", "#4CAF50", "#FF9800", 
+            "#9C27B0", "#00BCD4", "#FFEB3B", "#E91E63"
+        )
+        return Color.parseColor(colors.random())
+    }
+
+    private fun finishCondition() {
+        isExperimentRunning = false
+        experimentContainer.removeAllViews()
+        
+        // Calculate statistics
+        val avgReactionTime = trialResults.map { it.reactionTimeMs }.average()
+        val accuracy = (trialResults.count { it.accuracy }.toDouble() / trialResults.size) * 100
+        
+        val conditionName = conditionOrder[currentConditionIndex]
+        
+        // Log condition completion
+        Aura.logEvent("condition_completed", mapOf(
+            "condition" to conditionName,
+            "avg_reaction_time_ms" to avgReactionTime,
+            "accuracy_percent" to accuracy,
+            "total_trials" to trialResults.size
+        ))
+        
+        // Show results
+        val resultsText = """
+            ✅ Condition Complete!
+            
+            Condition: $conditionName
+            Trials: ${trialResults.size}
+            Avg Reaction Time: ${avgReactionTime.toInt()}ms
+            Accuracy: ${accuracy.toInt()}%
+        """.trimIndent()
+        
+        instructionText.text = resultsText
+        
+        AlertDialog.Builder(this)
+            .setTitle("📊 Condition Results")
+            .setMessage(resultsText)
+            .setPositiveButton("Continue") { _, _ ->
+                currentConditionIndex++
+                if (currentConditionIndex < conditionOrder.size) {
+                    instructionText.text = "👆 Click 'Next Condition' to continue"
+                    nextConditionButton.isEnabled = true
+                } else {
+                    finishExperiment()
                 }
-            )
-        } catch (e: Exception) {
-            appendLog("❌ getCompletedConditions() FEHLER: ${e.message}")
-            Log.e("AURA_TEST", "GetCompletedConditions failed", e)
-        }
+            }
+            .setCancelable(false)
+            .show()
     }
 
-    private fun testGetServerAwareConditionOrder() {
-        appendLog("⏳ getServerAwareConditionOrder() - Lade vom Server...")
+    private fun finishExperiment() {
+        // Log experiment completion
+        Aura.logEvent("experiment_completed", mapOf(
+            "total_conditions" to conditionOrder.size,
+            "total_trials" to (conditionOrder.size * totalTrialsPerCondition)
+        ))
         
-        try {
-            Aura.getServerAwareConditionOrder(
-                onSuccess = { remainingConditions ->
-                    runOnUiThread {
-                        appendLog("✅ getServerAwareConditionOrder() [SMART]:")
-                        if (remainingConditions.isEmpty()) {
-                            appendLog("   - Alle Conditions abgeschlossen! 🎉")
-                        } else {
-                            appendLog("   - Verbleibend: $remainingConditions")
-                        }
-                        Toast.makeText(this, "Remaining: $remainingConditions", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                onError = { error ->
-                    runOnUiThread {
-                        appendLog("⚠️ getServerAwareConditionOrder() Fallback (offline):")
-                        appendLog("   - ${error.message}")
-                    }
-                }
+        instructionText.text = """
+            🎉 Experiment Complete!
+            
+            Thank you for participating!
+            All data has been logged to CouchDB.
+            
+            You can close the app now.
+        """.trimIndent()
+        
+        nextConditionButton.isEnabled = false
+        
+        Toast.makeText(this, "Experiment finished! Thank you!", Toast.LENGTH_LONG).show()
+    }
+
+    private fun viewExperimentLogs() {
+        AlertDialog.Builder(this)
+            .setTitle("📋 Experiment Info")
+            .setMessage(
+                "Experiment: Fitts' Law\n" +
+                "Conditions: ${conditions.map { it.name }.joinToString(", ")}\n" +
+                "Order: ${conditionOrder.joinToString(" → ")}\n" +
+                "Trials per condition: $totalTrialsPerCondition\n\n" +
+                "All data is automatically logged to:\n" +
+                "https://couchdb.hci.uni-hannover.de/aura\n\n" +
+                "Logged events:\n" +
+                "• experiment_started\n" +
+                "• condition_started\n" +
+                "• target_hit (per trial)\n" +
+                "• condition_completed\n" +
+                "• experiment_completed"
             )
-        } catch (e: Exception) {
-            appendLog("❌ getServerAwareConditionOrder() FEHLER: ${e.message}")
-            Log.e("AURA_TEST", "GetServerAwareOrder failed", e)
-        }
-    }
-
-    // ==================== HELPER ====================
-
-    private fun appendLog(message: String) {
-        val currentTime = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
-            .format(java.util.Date())
-        logTextView.append("[$currentTime] $message\n")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        try {
-            Aura.logEvent("app_paused", emptyMap())
-        } catch (_: Exception) { }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        try {
-            Aura.logEvent("app_resumed", emptyMap())
-        } catch (_: Exception) { }
+            .setPositiveButton("OK", null)
+            .show()
     }
 }

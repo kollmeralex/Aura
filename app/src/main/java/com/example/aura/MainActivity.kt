@@ -397,6 +397,8 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Experiment Info")
             .setMessage(message)
             .setPositiveButton("OK", null)
+            .show()
+    }
 
     private fun showAllUserResults() {
         Toast.makeText(this, "Loading user data...", Toast.LENGTH_SHORT).show()
@@ -548,7 +550,5 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, "Parse error: ${e.message}", Toast.LENGTH_LONG).show()
         }
-    }
-            .show()
     }
 }

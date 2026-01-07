@@ -480,8 +480,7 @@ class MainActivity : AppCompatActivity() {
                             "user_id": "$userId",
                             "event_name": "target_hit"
                         },
-                        "fields": ["condition", "payload"],
-                        "limit": 10000
+                        "limit": 100000
                     }
                     """.trimIndent()
                 )

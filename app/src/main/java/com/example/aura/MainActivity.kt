@@ -205,8 +205,8 @@ class MainActivity : AppCompatActivity() {
         target.y = randomY.toFloat()
         
         val distance = currentTarget?.let {
-            val dx = randomX - it.x
-            val dy = randomY - it.y
+            val dx = randomX.toDouble() - it.x.toDouble()
+            val dy = randomY.toDouble() - it.y.toDouble()
             sqrt(dx.pow(2) + dy.pow(2))
         } ?: 0.0
         

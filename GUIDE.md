@@ -20,7 +20,7 @@ dependencyResolutionManagement {
 **Schritt 2:** Öffne `app/build.gradle.kts` und füge die Abhängigkeit hinzu:
 ```kotlin
 dependencies {
-    implementation("com.github.kollmeralex:Aura:v1.0.0")
+    implementation("com.github.kollmeralex:Aura:v1.1.0")
 }
 ```
 

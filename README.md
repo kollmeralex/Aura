@@ -34,7 +34,7 @@ Füge AURA zu deiner `app/build.gradle.kts` hinzu:
 
 ```kotlin
 dependencies {
-    implementation("com.github.kollmeralex:Aura:v1.0.0")
+    implementation("com.github.kollmeralex:Aura:v1.1.0")
 }
 ```
 

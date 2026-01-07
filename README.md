@@ -5,8 +5,9 @@ This branch contains a reference implementation of a Fitts' Law experiment using
 ## Overview
 
 The application implements a standard Fitts' Law pointing experiment with three target size conditions:
+
 - Small: 48dp
-- Medium: 96dp  
+- Medium: 96dp
 - Large: 144dp
 
 Participants complete 10 trials per condition. The order of conditions is automatically counterbalanced based on participant ID to control for learning effects.
@@ -55,14 +56,14 @@ android {
             if (localPropertiesFile.exists()) {
                 properties.load(localPropertiesFile.inputStream())
             }
-            
-            buildConfigField("String", "COUCHDB_USER", 
+
+            buildConfigField("String", "COUCHDB_USER",
                 "\"${properties.getProperty("couchdb.user", "")}\"")
-            buildConfigField("String", "COUCHDB_PASSWORD", 
+            buildConfigField("String", "COUCHDB_PASSWORD",
                 "\"${properties.getProperty("couchdb.password", "")}\"")
         }
     }
-    
+
     buildFeatures {
         buildConfig = true
     }
@@ -117,6 +118,7 @@ All events are logged locally and automatically synced to CouchDB when network i
 ### Event Types
 
 **experiment_started**
+
 ```json
 {
   "event_name": "experiment_started",
@@ -128,6 +130,7 @@ All events are logged locally and automatically synced to CouchDB when network i
 ```
 
 **target_hit** (per trial)
+
 ```json
 {
   "event_name": "target_hit",
@@ -141,6 +144,7 @@ All events are logged locally and automatically synced to CouchDB when network i
 ```
 
 **condition_completed**
+
 ```json
 {
   "event_name": "condition_completed",
@@ -151,6 +155,7 @@ All events are logged locally and automatically synced to CouchDB when network i
 ```
 
 All events include automatic metadata:
+
 - experiment_id
 - user_id
 - timestamp

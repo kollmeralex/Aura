@@ -69,7 +69,7 @@ class MainActivity : AppCompatActivity() {
         viewLogsButton = findViewById(R.id.viewLogsButton)
         
         nextConditionButton.isEnabled = false
-        viewLogsButton.isEnabled = false
+        viewLogsButton.isEnabled = true
         viewLogsButton.text = "View All Results"
     }
 
@@ -337,7 +337,7 @@ class MainActivity : AppCompatActivity() {
         setupButton.isEnabled = true
         nextConditionButton.isEnabled = false
         viewLogsButton.text = "View All Results"
-        viewLogsButton.isEnabled = false
+        viewLogsButton.isEnabled = true
         
         userIdText.text = "Participant: Not initialized"
         conditionText.text = "Condition: None"

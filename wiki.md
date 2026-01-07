@@ -92,7 +92,7 @@ Integration in ein Projekt:
 2.  Abhängigkeit zur `build.gradle.kts` (oder `libs.versions.toml`) der App hinzufügen:
     ```kotlin
     dependencies {
-        implementation("com.github.kollmeralex:Aura:v1.0.0")
+        implementation("com.github.kollmeralex:Aura:v1.1.0")
     }
     ```
 

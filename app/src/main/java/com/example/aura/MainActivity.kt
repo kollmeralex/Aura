@@ -70,6 +70,7 @@ class MainActivity : AppCompatActivity() {
         
         nextConditionButton.isEnabled = false
         viewLogsButton.isEnabled = false
+        viewLogsButton.text = "View All Results"
     }
 
     private fun setupClickListeners() {
@@ -82,7 +83,11 @@ class MainActivity : AppCompatActivity() {
         }
         
         viewLogsButton.setOnClickListener {
-            viewExperimentLogs()
+            if (conditionOrder.isEmpty()) {
+                showAllUserResults()
+            } else {
+                viewExperimentLogs()
+            }
         }
     }
 
@@ -118,6 +123,7 @@ class MainActivity : AppCompatActivity() {
             userIdInput.isEnabled = false
             setupButton.isEnabled = false
             nextConditionButton.isEnabled = true
+            viewLogsButton.text = "Info"
             viewLogsButton.isEnabled = true
             
             instructionText.text = "Ready to start\n\nCondition order: ${conditionOrder.joinToString(" -> ")}"
@@ -330,6 +336,7 @@ class MainActivity : AppCompatActivity() {
         userIdInput.isEnabled = true
         setupButton.isEnabled = true
         nextConditionButton.isEnabled = false
+        viewLogsButton.text = "View All Results"
         viewLogsButton.isEnabled = false
         
         userIdText.text = "Participant: Not initialized"
@@ -390,6 +397,158 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Experiment Info")
             .setMessage(message)
             .setPositiveButton("OK", null)
+
+    private fun showAllUserResults() {
+        Toast.makeText(this, "Loading user data...", Toast.LENGTH_SHORT).show()
+        
+        Thread {
+            try {
+                val response = com.example.aura.lib.Aura.executeRawQuery(
+                    """
+                    {
+                        "selector": {
+                            "experiment_id": "Fitts_Law_Exp",
+                            "event_name": "experiment_started"
+                        },
+                        "fields": ["user_id"],
+                        "limit": 1000
+                    }
+                    """.trimIndent()
+                )
+                
+                runOnUiThread {
+                    if (response != null) {
+                        parseAndShowUserIds(response)
+                    } else {
+                        Toast.makeText(this, "No data found", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun parseAndShowUserIds(jsonResponse: String) {
+        try {
+            val userIds = mutableSetOf<String>()
+            
+            val docsStart = jsonResponse.indexOf("\"docs\":[")
+            if (docsStart != -1) {
+                val docsSection = jsonResponse.substring(docsStart)
+                val userIdPattern = "\"user_id\":\"([^\"]+)\"".toRegex()
+                
+                userIdPattern.findAll(docsSection).forEach { match ->
+                    userIds.add(match.groupValues[1])
+                }
+            }
+            
+            if (userIds.isEmpty()) {
+                Toast.makeText(this, "No participants found", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            val userIdArray = userIds.sorted().toTypedArray()
+            
+            AlertDialog.Builder(this)
+                .setTitle("Select Participant")
+                .setItems(userIdArray) { _, which ->
+                    loadUserResults(userIdArray[which])
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+                
+        } catch (e: Exception) {
+            Toast.makeText(this, "Parse error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun loadUserResults(userId: String) {
+        Toast.makeText(this, "Loading data for user $userId...", Toast.LENGTH_SHORT).show()
+        
+        Thread {
+            try {
+                val response = com.example.aura.lib.Aura.executeRawQuery(
+                    """
+                    {
+                        "selector": {
+                            "experiment_id": "Fitts_Law_Exp",
+                            "user_id": "$userId",
+                            "event_name": "target_hit"
+                        },
+                        "fields": ["condition", "payload"],
+                        "limit": 10000
+                    }
+                    """.trimIndent()
+                )
+                
+                runOnUiThread {
+                    if (response != null) {
+                        displayUserResults(userId, response)
+                    } else {
+                        Toast.makeText(this, "No data found for user $userId", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun displayUserResults(userId: String, jsonResponse: String) {
+        try {
+            val conditionTimes = mutableMapOf<String, MutableList<Long>>()
+            
+            val conditionPattern = "\"condition\":\"([^\"]+)\"".toRegex()
+            val reactionTimePattern = "\"reaction_time_ms\":(\\d+)".toRegex()
+            
+            val conditions = conditionPattern.findAll(jsonResponse).map { it.groupValues[1] }.toList()
+            val times = reactionTimePattern.findAll(jsonResponse).map { it.groupValues[1].toLong() }.toList()
+            
+            conditions.forEachIndexed { index, condition ->
+                if (index < times.size) {
+                    conditionTimes.getOrPut(condition) { mutableListOf() }.add(times[index])
+                }
+            }
+            
+            val resultsText = buildString {
+                append("Participant: $userId\n\n")
+                
+                if (conditionTimes.isEmpty()) {
+                    append("No trial data found")
+                } else {
+                    conditionTimes.entries.sortedBy { it.key }.forEach { (condition, times) ->
+                        val avgTime = times.average()
+                        val minTime = times.minOrNull() ?: 0
+                        val maxTime = times.maxOrNull() ?: 0
+                        
+                        append("$condition (${times.size} trials):\n")
+                        append("  Avg: ${avgTime.toInt()}ms\n")
+                        append("  Min: ${minTime}ms\n")
+                        append("  Max: ${maxTime}ms\n\n")
+                    }
+                    
+                    val allTimes = conditionTimes.values.flatten()
+                    append("Overall:\n")
+                    append("  Total trials: ${allTimes.size}\n")
+                    append("  Avg: ${allTimes.average().toInt()}ms")
+                }
+            }
+            
+            AlertDialog.Builder(this)
+                .setTitle("Results: User $userId")
+                .setMessage(resultsText)
+                .setPositiveButton("OK", null)
+                .show()
+                
+        } catch (e: Exception) {
+            Toast.makeText(this, "Parse error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
             .show()
     }
 }

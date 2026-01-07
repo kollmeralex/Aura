@@ -331,4 +331,41 @@ object Aura {
             throw RuntimeException(e)
         }
     }
+
+    /**
+     * Execute a raw Mango query against CouchDB
+     * @param query JSON string containing a Mango query
+     * @return JSON response string or null if failed
+     */
+    fun executeRawQuery(query: String): String? {
+        val config = currentConfig ?: run {
+            Log.e(TAG, "executeRawQuery called before setupExperiment")
+            return null
+        }
+
+        val localApi = api ?: run {
+            Log.e(TAG, "API not initialized")
+            return null
+        }
+
+        return try {
+            val queryMap = gson.fromJson(query, Map::class.java) as Map<String, Any>
+            val mangoQuery = MangoQuery(
+                selector = queryMap["selector"] as? Map<String, Any> ?: emptyMap(),
+                fields = queryMap["fields"] as? List<String>,
+                limit = (queryMap["limit"] as? Double)?.toInt()
+            )
+
+            val response = localApi.find(config.dbName, authHeader ?: "", mangoQuery).execute()
+            if (response.isSuccessful) {
+                gson.toJson(response.body())
+            } else {
+                Log.e(TAG, "Query failed: ${response.code()} ${response.message()}")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "executeRawQuery error", e)
+            null
+        }
+    }
 }

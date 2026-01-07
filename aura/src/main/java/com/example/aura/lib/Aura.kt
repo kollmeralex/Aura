@@ -126,8 +126,7 @@ object Aura {
                 "experiment_id" to config.experimentID,
                 "event_name" to "condition_started"
             ),
-            fields = listOf("condition", "timestamp"),
-            sort = listOf(mapOf("timestamp" to "asc"))
+            fields = listOf("condition", "timestamp")
         )
 
         try {
@@ -174,8 +173,7 @@ object Aura {
                 "experiment_id" to config.experimentID,
                 "event_name" to "condition_started"
             ),
-            fields = listOf("condition", "timestamp"),
-            sort = listOf(mapOf("timestamp" to "asc"))
+            fields = listOf("condition", "timestamp")
         )
 
         Thread {

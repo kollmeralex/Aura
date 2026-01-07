@@ -303,24 +303,92 @@ class MainActivity : AppCompatActivity() {
         instructionText.text = "Experiment complete\n\nThank you for participating!"
         nextConditionButton.isEnabled = false
         
-        Toast.makeText(this, "Experiment finished", Toast.LENGTH_LONG).show()
+        AlertDialog.Builder(this)
+            .setTitle("Experiment Complete")
+            .setMessage(
+                "Thank you for participating!\n\n" +
+                "All data has been logged.\n" +
+                "Total trials: ${conditionOrder.size * trialsPerCondition}"
+            )
+            .setPositiveButton("Start New Experiment") { _, _ ->
+                resetExperiment()
+            }
+            .setNegativeButton("View Results") { _, _ ->
+                showAllResults()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun resetExperiment() {
+        currentConditionIndex = 0
+        currentTrial = 0
+        conditionOrder = emptyList()
+        trialResults.clear()
+        
+        userIdInput.text?.clear()
+        userIdInput.isEnabled = true
+        setupButton.isEnabled = true
+        nextConditionButton.isEnabled = false
+        viewLogsButton.isEnabled = false
+        
+        userIdText.text = "Participant: Not initialized"
+        conditionText.text = "Condition: None"
+        instructionText.text = "Initialize experiment to begin"
+        experimentContainer.removeAllViews()
+        
+        Toast.makeText(this, "Ready for new experiment", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showAllResults() {
+        val allTrials = mutableListOf<String>()
+        
+        conditions.forEach { cond ->
+            val condTrials = trialResults.filter { it.condition == cond.name }
+            if (condTrials.isNotEmpty()) {
+                val avgTime = condTrials.map { it.reactionTime }.average()
+                allTrials.add("${cond.name}: ${avgTime.toInt()}ms avg (${condTrials.size} trials)")
+            }
+        }
+        
+        val resultsText = if (allTrials.isEmpty()) {
+            "No data recorded yet"
+        } else {
+            "Results:\n\n" + allTrials.joinToString("\n")
+        }
+        
+        AlertDialog.Builder(this)
+            .setTitle("Experiment Results")
+            .setMessage(resultsText)
+            .setPositiveButton("OK") { _, _ ->
+                resetExperiment()
+            }
+            .show()
     }
 
     private fun viewExperimentLogs() {
+        val message = if (conditionOrder.isEmpty()) {
+            "Experiment not initialized yet.\n\n" +
+            "Initialize an experiment first to see details."
+        } else {
+            "Study: Fitts' Law\n\n" +
+            "Counterbalancing:\n" +
+            "- Odd IDs (1,3,5...): ${conditions.map { it.name }.joinToString(" -> ")}\n" +
+            "- Even IDs (2,4,6...): ${conditions.map { it.name }.reversed().joinToString(" -> ")}\n\n" +
+            "Your order: ${conditionOrder.joinToString(" -> ")}\n" +
+            "Trials per condition: $trialsPerCondition\n\n" +
+            "Data logged:\n" +
+            "- experiment_started\n" +
+            "- condition_started\n" +
+            "- target_hit (per trial)\n" +
+            "- condition_completed\n" +
+            "- experiment_completed\n\n" +
+            "Logged to: CouchDB + local JSONL files"
+        }
+        
         AlertDialog.Builder(this)
             .setTitle("Experiment Info")
-            .setMessage(
-                "Study: Fitts' Law\n" +
-                "Conditions: ${conditions.map { it.name }.joinToString(", ")}\n" +
-                "Order: ${conditionOrder.joinToString(" -> ")}\n" +
-                "Trials per condition: $trialsPerCondition\n\n" +
-                "Data logged to CouchDB:\n" +
-                "- experiment_started\n" +
-                "- condition_started\n" +
-                "- target_hit (per trial)\n" +
-                "- condition_completed\n" +
-                "- experiment_completed"
-            )
+            .setMessage(message)
             .setPositiveButton("OK", null)
             .show()
     }

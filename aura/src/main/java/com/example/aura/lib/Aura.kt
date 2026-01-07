@@ -356,7 +356,7 @@ object Aura {
                 limit = (queryMap["limit"] as? Double)?.toInt()
             )
 
-            val response = localApi.find(config.dbName, authHeader ?: "", mangoQuery).execute()
+            val response = localApi.findDocuments(config.dbName, authHeader ?: "", mangoQuery).execute()
             if (response.isSuccessful) {
                 gson.toJson(response.body())
             } else {

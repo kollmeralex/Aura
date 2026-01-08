@@ -55,7 +55,24 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         
         initializeViews()
+        initializeDatabaseConnection()
         setupClickListeners()
+    }
+
+    private fun initializeDatabaseConnection() {
+        // Initialize database connection for querying results before experiment starts
+        try {
+            val dbConfig = Aura.DatabaseConfig(
+                context = applicationContext,
+                couchDbUrl = "https://couchdb.hci.uni-hannover.de",
+                dbName = "aura",
+                username = BuildConfig.COUCHDB_USER,
+                password = BuildConfig.COUCHDB_PASSWORD
+            )
+            Aura.initializeDatabase(dbConfig)
+        } catch (e: Exception) {
+            // Ignore - will be initialized when experiment starts
+        }
     }
 
     private fun initializeViews() {
@@ -106,11 +123,17 @@ class MainActivity : AppCompatActivity() {
                 dbName = "aura",
                 username = BuildConfig.COUCHDB_USER,
                 password = BuildConfig.COUCHDB_PASSWORD,
-                availableConditions = conditions.map { it.name }
+                availableConditions = conditions.map { it.name },
+                counterbalanceConfig = Aura.CounterbalanceConfig(
+                    mode = Aura.CounterbalanceMode.LATIN_SQUARE
+                )
             )
             
             Aura.setupExperiment(config)
-            conditionOrder = Aura.getSuggestedConditionOrder()
+            
+            // Get counterbalanced order with full metadata
+            val cbResult = Aura.getCounterbalancedOrder()
+            conditionOrder = cbResult.conditionOrder
             
             Aura.logEvent("experiment_started", mapOf(
                 "participant_id" to userId,
@@ -378,11 +401,19 @@ class MainActivity : AppCompatActivity() {
             "Experiment not initialized yet.\n\n" +
             "Initialize an experiment first to see details."
         } else {
+            val cbResult = try { Aura.getCounterbalancedOrder() } catch (e: Exception) { null }
+            val latinSquareInfo = cbResult?.let {
+                "Latin Square (${it.totalGroups} groups):\n" +
+                it.allOrders.mapIndexed { idx, order -> 
+                    "  Group $idx: ${order.joinToString(" → ")}"
+                }.joinToString("\n")
+            } ?: "N/A"
+            
             "Study: Fitts' Law\n\n" +
-            "Counterbalancing:\n" +
-            "- Odd IDs (1,3,5...): ${conditions.map { it.name }.joinToString(" -> ")}\n" +
-            "- Even IDs (2,4,6...): ${conditions.map { it.name }.reversed().joinToString(" -> ")}\n\n" +
-            "Your order: ${conditionOrder.joinToString(" -> ")}\n" +
+            "Counterbalancing Mode: Latin Square\n\n" +
+            latinSquareInfo + "\n\n" +
+            "Your group: ${cbResult?.groupIndex ?: "?"}\n" +
+            "Your order: ${conditionOrder.joinToString(" → ")}\n" +
             "Trials per condition: $trialsPerCondition\n\n" +
             "Data logged:\n" +
             "- experiment_started\n" +

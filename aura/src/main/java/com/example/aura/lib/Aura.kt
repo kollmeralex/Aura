@@ -101,6 +101,64 @@ object Aura {
         val counterbalanceConfig: CounterbalanceConfig = CounterbalanceConfig()
     )
 
+    /**
+     * Lightweight database configuration for querying without starting an experiment.
+     * Use this to access stored data before a participant starts their session.
+     */
+    data class DatabaseConfig(
+        val context: Context,
+        val couchDbUrl: String,
+        val dbName: String,
+        val username: String,
+        val password: String
+    )
+
+    /**
+     * Initialize only the database connection without starting an experiment.
+     * Use this when you need to query data (e.g., view all results) before
+     * a participant has started their session.
+     * 
+     * Note: This does NOT set up logging - use setupExperiment() for full functionality.
+     */
+    fun initializeDatabase(dbConfig: DatabaseConfig) {
+        Log.d(TAG, "Initialize Database connection only")
+        
+        // Create Basic Auth Header
+        val credentials = "${dbConfig.username}:${dbConfig.password}"
+        authHeader = "Basic " + Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)
+
+        // Initialize Retrofit
+        val baseUrl = if (dbConfig.couchDbUrl.endsWith("/")) dbConfig.couchDbUrl else "${dbConfig.couchDbUrl}/"
+        
+        val retrofit = Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(getUnsafeOkHttpClient())
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        api = retrofit.create(CouchDbApi::class.java)
+        
+        // Store minimal config for queries
+        currentConfig = Config(
+            context = dbConfig.context,
+            experimentID = "",
+            userID = "",
+            couchDbUrl = dbConfig.couchDbUrl,
+            dbName = dbConfig.dbName,
+            username = dbConfig.username,
+            password = dbConfig.password
+        )
+        
+        Log.i(TAG, "Database connection initialized (query-only mode)")
+    }
+
+    /**
+     * Check if the database connection is initialized (either via initializeDatabase or setupExperiment)
+     */
+    fun isDatabaseInitialized(): Boolean {
+        return api != null && authHeader != null && currentConfig != null
+    }
+
     fun setupExperiment(config: Config) {
         Log.d(TAG, "Setup Experiment: $config")
         currentConfig = config

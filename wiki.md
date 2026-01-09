@@ -342,20 +342,20 @@ Wesentliche Probleme beim Logging sind Datenschutz und Performance-Einfluss. AUR
 
 **Bearbeitungszeit:** 23.10.2025 – 15.01.2026
 
-^ Woche ^ Datum ^ Aufgaben ^ Status ^
-| 01 | 23.10. – 29.10. | Kick-off, Einarbeitung Android-Bibliotheken, CouchDB | DONE |
-| 02 | 30.10. – 05.11. | Literaturrecherche, Related Work | DONE |
-| 03 | 06.11. – 12.11. | Architektur, API-Design, Datenmodell | DONE |
-| 04 | 13.11. – 19.11. | Projekt-Setup, erste API-Implementierung | DONE |
-| 05 | 20.11. – 26.11. | logEvent mit Metadaten-Anreicherung | DONE |
-| 06 | 27.11. – 03.12. | Lokale JSONL-Speicherung | DONE |
-| 07 | 04.12. – 10.12. | Demo-App: Fitts' Law mit Counterbalancing | DONE |
-| 08 | 11.12. – 17.12. | CouchDB-Integration, Netzwerk-Schicht | DONE |
-| 09 | 18.12. – 24.12. | Bidirektionaler Datenfluss, Counterbalancing-Modi | DONE |
-| 10 | 25.12. – 31.12. | Weihnachtspause | – |
-| 11 | 01.01. – 07.01. | Tests, Debugging, ID-Validierung | DONE |
-| 12 | 08.01. – 14.01. | Dokumentation, README, Wiki | IN PROGRESS |
-| 13 | 15.01.2026 | Abschlusspräsentation | – |
+| Woche | Datum | Geplante Aufgaben | Tatsächlicher Status |
+| **01** | 23.10. – 29.10. | **Kick-off & Einarbeitung:** Projektdefinition finalisieren, Einarbeitung in die Erstellung von Android-Bibliotheken und die Grundlagen von CouchDB. | DONE |
+| **02** | 30.10. – 05.11. | **Literaturrecherche:** Analyse von existierenden Logging-Frameworks (Related Work) und Best Practices. | DONE |
+| **03** | 06.11. – 12.11. | **Architektur & Design:** Detaillierte Systemarchitektur entwerfen, API-Design (''setupExperiment'', ''logEvent'') und JSON-Datenmodell finalisieren. | DONE |
+| **04** | 13.11. – 19.11. | **Setup & Prototyping:** Projekt-Setup (App-Modul + Bibliotheks-Modul), erste API-Implementierung, Testaufrufe loggen Events nach Logcat. | DONE |
+| **05** | 20.11. – 26.11. | **Implementierung (Kern I):** Kernlogik entwickeln: ''logEvent''-Funktion mit automatischer Anreicherung von Metadaten (Timestamp, IDs etc.). | DONE |
+| **06** | 27.11. – 03.12. | **Implementierung (Kern II):** Lokale Speicherung implementieren: Gesammelte Events werden in eine JSONL-Datei auf dem Gerät geschrieben. | DONE |
+| **07** | 04.12. – 10.12. | **Implementierung (Demo-App):** Fitts' Law Experiment mit **Counterbalancing**. Implementierung der Logik, die basierend auf Teilnehmer-ID die Condition-Reihenfolge bestimmt. | DONE |
+| **08** | 11.12. – 17.12. | **Datenbank-Integration I:** CouchDB-Server aufsetzen, Netzwerk-Schicht in der Bibliothek implementieren (Retrofit). | DONE |
+| **09** | 18.12. – 24.12. | **Datenbank-Integration II (Bidirektional):** Implementierung des **Rückkanals** (Server → App). Abrufen von User-Daten für Counterbalancing-Entscheidungen. | DONE |
+| **10** | 25.12. – 31.12. | _(Weihnachtspause / Puffer)_ | – |
+| **11** | 01.01. – 07.01. | **Test & Verfeinerung:** Umfassende Tests der Bibliothek im Demo-Prototypen, Debugging, ID-Validierung mit Vorschlag-Feature. | DONE |
+| **12** | 08.01. – 14.01. | **Dokumentation & Bericht:** Verfassen der API-Dokumentation, README und Wiki. Ausarbeitung des Abschlussberichts. | IN PROGRESS |
+| **13** | 15.01.2026 | **Abschluss:** Finale Code-Einreichung, Vorbereitung und Halten der Abschlusspräsentation. | – |
 
 ---
 

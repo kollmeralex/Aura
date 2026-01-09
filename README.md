@@ -17,12 +17,12 @@ AURA ist eine Android-Logging-Bibliothek für HCI-Forschung und Nutzerstudien. D
 
 ## Anforderungen
 
-| Anforderung | Version |
-|-------------|---------|
+| Anforderung | Version           |
+| ----------- | ----------------- |
 | Android API | 24+ (Android 7.0) |
-| Kotlin | 1.9.0+ |
-| Gradle | 8.0+ |
-| CouchDB | 3.x empfohlen |
+| Kotlin      | 1.9.0+            |
+| Gradle      | 8.0+              |
+| CouchDB     | 3.x empfohlen     |
 
 ---
 
@@ -77,7 +77,7 @@ android {
         buildConfigField("String", "COUCHDB_USER", "\"${localProperties.getProperty("couchdb.user", "")}\"")
         buildConfigField("String", "COUCHDB_PASSWORD", "\"${localProperties.getProperty("couchdb.password", "")}\"")
     }
-    
+
     buildFeatures {
         buildConfig = true
     }
@@ -127,13 +127,13 @@ Aura.logEvent("trial_completed", mapOf(
 
 AURA bietet verschiedene Modi zur Kontrolle von Reihenfolgeeffekten:
 
-| Modus | Beschreibung | Anwendungsfall |
-|-------|--------------|----------------|
-| `LATIN_SQUARE` | Balancierte Rotation der Bedingungen | Standard für Within-Subject Designs |
-| `FULL_PERMUTATION` | Alle n! möglichen Reihenfolgen | Kleine Anzahl an Bedingungen (≤4) |
-| `RANDOM` | Zufällige Reihenfolge pro Teilnehmer | Wenn Reihenfolge keine Rolle spielt |
-| `CUSTOM` | Feste Reihenfolge definieren | Spezifische Anforderungen |
-| `LEGACY` | Einfache odd/even Umkehrung | Abwärtskompatibilität |
+| Modus              | Beschreibung                         | Anwendungsfall                      |
+| ------------------ | ------------------------------------ | ----------------------------------- |
+| `LATIN_SQUARE`     | Balancierte Rotation der Bedingungen | Standard für Within-Subject Designs |
+| `FULL_PERMUTATION` | Alle n! möglichen Reihenfolgen       | Kleine Anzahl an Bedingungen (≤4)   |
+| `RANDOM`           | Zufällige Reihenfolge pro Teilnehmer | Wenn Reihenfolge keine Rolle spielt |
+| `CUSTOM`           | Feste Reihenfolge definieren         | Spezifische Anforderungen           |
+| `LEGACY`           | Einfache odd/even Umkehrung          | Abwärtskompatibilität               |
 
 ---
 
@@ -148,6 +148,7 @@ counterbalanceConfig = Aura.CounterbalanceConfig(
 ```
 
 Beispiel mit 3 Bedingungen (A, B, C):
+
 ```
 Gruppe 0: A → B → C
 Gruppe 1: B → C → A
@@ -155,6 +156,7 @@ Gruppe 2: C → A → B
 ```
 
 Beispiel mit 4 Bedingungen (A, B, C, D):
+
 ```
 Gruppe 0: A → B → C → D
 Gruppe 1: B → C → D → A
@@ -177,6 +179,7 @@ counterbalanceConfig = Aura.CounterbalanceConfig(
 ```
 
 Beispiel mit 3 Bedingungen (A, B, C) – alle 6 Permutationen:
+
 ```
 Gruppe 0: A → B → C
 Gruppe 1: A → C → B
@@ -199,6 +202,7 @@ counterbalanceConfig = Aura.CounterbalanceConfig(
 ```
 
 Beispiel:
+
 ```
 Teilnehmer 1: C → A → B
 Teilnehmer 2: B → C → A
@@ -222,6 +226,7 @@ counterbalanceConfig = Aura.CounterbalanceConfig(
 ```
 
 Ergebnis für alle Teilnehmer:
+
 ```
 Medium → Small → Large
 ```
@@ -252,6 +257,7 @@ counterbalanceConfig = Aura.CounterbalanceConfig(
 ```
 
 Beispiel mit 3 Bedingungen (A, B, C):
+
 ```
 Gerade IDs (0, 2, 4...): A → B → C
 Ungerade IDs (1, 3, 5...): C → B → A
@@ -272,6 +278,7 @@ counterbalanceConfig = Aura.CounterbalanceConfig(
 ```
 
 Beispiel: Bei Bedingungen [A, B, C, Training, Questionnaire]:
+
 ```
 Gruppe 0: Training → A → B → C → Questionnaire
 Gruppe 1: Training → B → C → A → Questionnaire

@@ -135,16 +135,15 @@ AURA bietet verschiedene Modi zur Kontrolle von Reihenfolgeeffekten:
 | `CUSTOM` | Feste Reihenfolge definieren | Spezifische Anforderungen |
 | `LEGACY` | Einfache odd/even Umkehrung | Abwärtskompatibilität |
 
+---
+
 #### Latin Square (Standard)
 
-Für n Bedingungen werden n Gruppen erstellt, wobei jede Bedingung an jeder Position gleich oft vorkommt:
+Für n Bedingungen werden n Gruppen erstellt, wobei jede Bedingung an jeder Position gleich oft vorkommt. Teilnehmer werden automatisch via `participantIndex % n` den Gruppen zugewiesen.
 
 ```kotlin
-val config = Aura.Config(
-    // ...
-    counterbalanceConfig = Aura.CounterbalanceConfig(
-        mode = Aura.CounterbalanceMode.LATIN_SQUARE
-    )
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.LATIN_SQUARE
 )
 ```
 
@@ -155,9 +154,65 @@ Gruppe 1: B → C → A
 Gruppe 2: C → A → B
 ```
 
-#### Custom Mode
+Beispiel mit 4 Bedingungen (A, B, C, D):
+```
+Gruppe 0: A → B → C → D
+Gruppe 1: B → C → D → A
+Gruppe 2: C → D → A → B
+Gruppe 3: D → A → B → C
+```
 
-Für eine feste Reihenfolge unabhängig vom Teilnehmer:
+---
+
+#### Full Permutation
+
+Generiert alle n! möglichen Reihenfolgen. Teilnehmer durchlaufen zyklisch alle Permutationen.
+
+**Achtung:** Nur für kleine n praktikabel (3 Bedingungen = 6 Gruppen, 4 = 24, 5 = 120).
+
+```kotlin
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.FULL_PERMUTATION
+)
+```
+
+Beispiel mit 3 Bedingungen (A, B, C) – alle 6 Permutationen:
+```
+Gruppe 0: A → B → C
+Gruppe 1: A → C → B
+Gruppe 2: B → A → C
+Gruppe 3: B → C → A
+Gruppe 4: C → A → B
+Gruppe 5: C → B → A
+```
+
+---
+
+#### Random
+
+Erzeugt eine zufällige Reihenfolge für jeden Teilnehmer. Der Seed basiert auf der Teilnehmer-ID, sodass die gleiche ID immer die gleiche Reihenfolge ergibt (reproduzierbar).
+
+```kotlin
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.RANDOM
+)
+```
+
+Beispiel:
+```
+Teilnehmer 1: C → A → B
+Teilnehmer 2: B → C → A
+Teilnehmer 3: A → C → B
+...
+```
+
+---
+
+#### Custom
+
+Definiert eine feste Reihenfolge für alle Teilnehmer oder individuelle Reihenfolgen pro Teilnehmer-ID.
+
+**Variante 1: Gleiche Reihenfolge für alle**
 
 ```kotlin
 counterbalanceConfig = Aura.CounterbalanceConfig(
@@ -166,9 +221,47 @@ counterbalanceConfig = Aura.CounterbalanceConfig(
 )
 ```
 
+Ergebnis für alle Teilnehmer:
+```
+Medium → Small → Large
+```
+
+**Variante 2: Individuelle Reihenfolgen**
+
+```kotlin
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.CUSTOM,
+    customOrders = mapOf(
+        "P01" to listOf("A", "B", "C"),
+        "P02" to listOf("C", "B", "A"),
+        "P03" to listOf("B", "A", "C")
+    )
+)
+```
+
+---
+
+#### Legacy
+
+Einfache Umkehrung basierend auf gerader/ungerader Teilnehmer-ID. Nur 2 Gruppen.
+
+```kotlin
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.LEGACY
+)
+```
+
+Beispiel mit 3 Bedingungen (A, B, C):
+```
+Gerade IDs (0, 2, 4...): A → B → C
+Ungerade IDs (1, 3, 5...): C → B → A
+```
+
+---
+
 #### Start-/End-Bedingung festlegen
 
-Optional kann eine feste Start- oder Endbedingung definiert werden:
+Unabhängig vom Modus kann eine feste Start- oder Endbedingung definiert werden:
 
 ```kotlin
 counterbalanceConfig = Aura.CounterbalanceConfig(
@@ -176,6 +269,13 @@ counterbalanceConfig = Aura.CounterbalanceConfig(
     startCondition = "Training",
     endCondition = "Questionnaire"
 )
+```
+
+Beispiel: Bei Bedingungen [A, B, C, Training, Questionnaire]:
+```
+Gruppe 0: Training → A → B → C → Questionnaire
+Gruppe 1: Training → B → C → A → Questionnaire
+...
 ```
 
 ---

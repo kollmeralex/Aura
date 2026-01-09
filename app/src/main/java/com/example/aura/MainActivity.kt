@@ -92,7 +92,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         setupButton.setOnClickListener {
-            initializeExperiment()
+            val userId = userIdInput.text.toString().trim()
+            if (userId.isBlank()) {
+                Toast.makeText(this, "Please enter a participant ID", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            // Check if user ID already exists
+            checkUserIdExists(userId) { exists, existingIds ->
+                if (exists) {
+                    showUserIdExistsDialog(userId, existingIds)
+                } else {
+                    initializeExperiment(userId)
+                }
+            }
         }
         
         nextConditionButton.setOnClickListener {
@@ -107,12 +120,158 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-    private fun initializeExperiment() {
-        val userId = userIdInput.text.toString().ifBlank { 
-            Toast.makeText(this, "Please enter a participant ID", Toast.LENGTH_SHORT).show()
-            return
+    
+    private fun checkUserIdExists(userId: String, callback: (exists: Boolean, existingIds: List<String>) -> Unit) {
+        Toast.makeText(this, "Checking participant ID...", Toast.LENGTH_SHORT).show()
+        
+        Thread {
+            try {
+                val response = com.example.aura.lib.Aura.executeRawQuery(
+                    """
+                    {
+                        "selector": {
+                            "experiment_id": "Fitts_Law_Exp",
+                            "event_name": "experiment_started"
+                        },
+                        "fields": ["user_id"],
+                        "limit": 1000
+                    }
+                    """.trimIndent()
+                )
+                
+                val existingIds = mutableSetOf<String>()
+                if (response != null) {
+                    "\"user_id\":\\s*\"([^\"]+)\"".toRegex().findAll(response).forEach {
+                        existingIds.add(it.groupValues[1])
+                    }
+                }
+                
+                val sortedIds = existingIds.sorted()
+                val exists = userId in existingIds
+                
+                runOnUiThread {
+                    callback(exists, sortedIds)
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    // If check fails, proceed anyway
+                    callback(false, emptyList())
+                }
+            }
+        }.start()
+    }
+    
+    private fun showUserIdExistsDialog(userId: String, existingIds: List<String>) {
+        val context = this
+        
+        val mainLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(0, 0, 0, 0)
         }
+        
+        // Warning header
+        val headerLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#FF5722"))
+            setPadding(48, 40, 48, 32)
+        }
+        
+        val warningIcon = TextView(context).apply {
+            text = "⚠️ ID Already Exists"
+            textSize = 20f
+            setTextColor(Color.WHITE)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        headerLayout.addView(warningIcon)
+        
+        val warningText = TextView(context).apply {
+            text = "Participant ID \"$userId\" has already been used."
+            textSize = 14f
+            setTextColor(Color.parseColor("#FFCCBC"))
+            setPadding(0, 8, 0, 0)
+        }
+        headerLayout.addView(warningText)
+        
+        mainLayout.addView(headerLayout)
+        
+        // Content
+        val contentLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 24)
+        }
+        
+        val infoText = TextView(context).apply {
+            text = "Please choose a different ID or continue with this ID if you want to add more data for this participant."
+            textSize = 14f
+            setTextColor(Color.parseColor("#666666"))
+            setLineSpacing(6f, 1f)
+        }
+        contentLayout.addView(infoText)
+        
+        // Show existing IDs
+        val existingTitle = TextView(context).apply {
+            text = "\nExisting Participant IDs:"
+            textSize = 14f
+            setTextColor(Color.parseColor("#333333"))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(0, 16, 0, 8)
+        }
+        contentLayout.addView(existingTitle)
+        
+        val scrollView = android.widget.ScrollView(context).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                300
+            )
+        }
+        
+        val idsList = TextView(context).apply {
+            text = existingIds.joinToString("\n") { "  •  $it" }
+            textSize = 14f
+            setTextColor(Color.parseColor("#1976D2"))
+            typeface = android.graphics.Typeface.MONOSPACE
+        }
+        scrollView.addView(idsList)
+        contentLayout.addView(scrollView)
+        
+        // Suggestion for next ID
+        val nextId = suggestNextId(existingIds)
+        val suggestionText = TextView(context).apply {
+            text = "\n💡 Suggested next ID: $nextId"
+            textSize = 14f
+            setTextColor(Color.parseColor("#388E3C"))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        contentLayout.addView(suggestionText)
+        
+        mainLayout.addView(contentLayout)
+        
+        AlertDialog.Builder(context, android.R.style.Theme_Material_Light_Dialog_Alert)
+            .setView(mainLayout)
+            .setPositiveButton("Use Anyway") { _, _ ->
+                initializeExperiment(userId)
+            }
+            .setNegativeButton("Change ID") { dialog, _ ->
+                userIdInput.setText(nextId)
+                userIdInput.setSelection(nextId.length)
+                dialog.dismiss()
+            }
+            .setNeutralButton("Cancel", null)
+            .show()
+    }
+    
+    private fun suggestNextId(existingIds: List<String>): String {
+        // Try to find numeric IDs and suggest next number
+        val numericIds = existingIds.mapNotNull { it.toIntOrNull() }.sorted()
+        return if (numericIds.isNotEmpty()) {
+            (numericIds.max() + 1).toString()
+        } else {
+            // If no numeric IDs, suggest "1" or append number
+            "1"
+        }
+    }
+
+    private fun initializeExperiment(userId: String) {
         
         try {
             val config = Aura.Config(
@@ -125,7 +284,10 @@ class MainActivity : AppCompatActivity() {
                 password = BuildConfig.COUCHDB_PASSWORD,
                 availableConditions = conditions.map { it.name },
                 counterbalanceConfig = Aura.CounterbalanceConfig(
-                    mode = Aura.CounterbalanceMode.LATIN_SQUARE
+                    mode = Aura.CounterbalanceMode.CUSTOM,
+                    customOrders = mapOf(
+                        "default" to listOf("Medium", "Small", "Large")
+                    )
                 )
             )
             
@@ -402,16 +564,26 @@ class MainActivity : AppCompatActivity() {
             "Initialize an experiment first to see details."
         } else {
             val cbResult = try { Aura.getCounterbalancedOrder() } catch (e: Exception) { null }
-            val latinSquareInfo = cbResult?.let {
-                "Latin Square (${it.totalGroups} groups):\n" +
+            
+            val modeName = when (cbResult?.mode) {
+                Aura.CounterbalanceMode.LATIN_SQUARE -> "Latin Square"
+                Aura.CounterbalanceMode.FULL_PERMUTATION -> "Full Permutation"
+                Aura.CounterbalanceMode.RANDOM -> "Random"
+                Aura.CounterbalanceMode.CUSTOM -> "Custom (Fixed Order)"
+                Aura.CounterbalanceMode.LEGACY -> "Legacy"
+                else -> "Unknown"
+            }
+            
+            val orderInfo = cbResult?.let {
+                "$modeName (${it.totalGroups} groups):\n" +
                 it.allOrders.mapIndexed { idx, order -> 
                     "  Group $idx: ${order.joinToString(" → ")}"
                 }.joinToString("\n")
             } ?: "N/A"
             
             "Study: Fitts' Law\n\n" +
-            "Counterbalancing Mode: Latin Square\n\n" +
-            latinSquareInfo + "\n\n" +
+            "Counterbalancing Mode: $modeName\n\n" +
+            orderInfo + "\n\n" +
             "Your group: ${cbResult?.groupIndex ?: "?"}\n" +
             "Your order: ${conditionOrder.joinToString(" → ")}\n" +
             "Trials per condition: $trialsPerCondition\n\n" +
@@ -483,19 +655,127 @@ class MainActivity : AppCompatActivity() {
                 return
             }
             
-            val userIdArray = userIds.sorted().toTypedArray()
-            
-            AlertDialog.Builder(this)
-                .setTitle("Select Participant")
-                .setItems(userIdArray) { _, which ->
-                    loadUserResults(userIdArray[which])
-                }
-                .setNegativeButton("Cancel", null)
-                .show()
+            // Create professional participant selection dialog
+            val sortedUsers = userIds.sorted()
+            showParticipantSelectionDialog(sortedUsers)
                 
         } catch (e: Exception) {
             Toast.makeText(this, "Parse error: ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+    
+    private fun showParticipantSelectionDialog(userIds: List<String>) {
+        val context = this
+        
+        val mainLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(0, 0, 0, 0)
+        }
+        
+        // Header
+        val headerLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#1976D2"))
+            setPadding(48, 40, 48, 32)
+        }
+        
+        val headerTitle = TextView(context).apply {
+            text = "Experiment Results"
+            textSize = 22f
+            setTextColor(Color.WHITE)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        headerLayout.addView(headerTitle)
+        
+        val headerSubtitle = TextView(context).apply {
+            text = "${userIds.size} participants"
+            textSize = 14f
+            setTextColor(Color.parseColor("#BBDEFB"))
+            setPadding(0, 8, 0, 0)
+        }
+        headerLayout.addView(headerSubtitle)
+        
+        mainLayout.addView(headerLayout)
+        
+        // Scrollable list
+        val scrollView = android.widget.ScrollView(context).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                0, 1f
+            )
+        }
+        
+        val listLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(0, 16, 0, 16)
+        }
+        
+        val dialog = AlertDialog.Builder(context, android.R.style.Theme_Material_Light_Dialog_Alert)
+            .setView(mainLayout)
+            .setNegativeButton("Cancel", null)
+            .create()
+        
+        userIds.forEachIndexed { index, userId ->
+            val itemLayout = android.widget.LinearLayout(context).apply {
+                orientation = android.widget.LinearLayout.HORIZONTAL
+                setPadding(48, 24, 48, 24)
+                isClickable = true
+                isFocusable = true
+                setBackgroundResource(android.R.drawable.list_selector_background)
+                
+                setOnClickListener {
+                    dialog.dismiss()
+                    loadUserResults(userId)
+                }
+            }
+            
+            val userIcon = TextView(context).apply {
+                text = "👤"
+                textSize = 20f
+                setPadding(0, 0, 24, 0)
+            }
+            itemLayout.addView(userIcon)
+            
+            val userLabel = TextView(context).apply {
+                text = "Participant $userId"
+                textSize = 16f
+                setTextColor(Color.parseColor("#333333"))
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                )
+            }
+            itemLayout.addView(userLabel)
+            
+            val arrowIcon = TextView(context).apply {
+                text = "›"
+                textSize = 24f
+                setTextColor(Color.parseColor("#999999"))
+            }
+            itemLayout.addView(arrowIcon)
+            
+            listLayout.addView(itemLayout)
+            
+            // Add divider (except for last item)
+            if (index < userIds.size - 1) {
+                val divider = android.view.View(context).apply {
+                    setBackgroundColor(Color.parseColor("#EEEEEE"))
+                    layoutParams = android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 1
+                    ).apply { marginStart = 96 }
+                }
+                listLayout.addView(divider)
+            }
+        }
+        
+        scrollView.addView(listLayout)
+        mainLayout.addView(scrollView)
+        
+        dialog.window?.setLayout(
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            (resources.displayMetrics.heightPixels * 0.6).toInt()
+        )
+        
+        dialog.show()
     }
 
     private fun loadUserResults(userId: String) {
@@ -503,27 +783,56 @@ class MainActivity : AppCompatActivity() {
         
         Thread {
             try {
+                // First, get ALL events for this user to see what's available
+                val allEventsResponse = com.example.aura.lib.Aura.executeRawQuery(
+                    """
+                    {
+                        "selector": {
+                            "experiment_id": "Fitts_Law_Exp",
+                            "user_id": "$userId"
+                        },
+                        "fields": ["event_name", "timestamp", "condition"],
+                        "limit": 1000
+                    }
+                    """.trimIndent()
+                )
+                
+                // Count event types
+                val eventCounts = mutableMapOf<String, Int>()
+                "\"event_name\":\"([^\"]+)\"".toRegex().findAll(allEventsResponse ?: "").forEach {
+                    val eventName = it.groupValues[1]
+                    eventCounts[eventName] = (eventCounts[eventName] ?: 0) + 1
+                }
+                
+                android.util.Log.d("AURA_DEBUG", "Event counts for user $userId: $eventCounts")
+                
+                // Query for trial events (both old and new format)
                 val response = com.example.aura.lib.Aura.executeRawQuery(
                     """
                     {
                         "selector": {
                             "experiment_id": "Fitts_Law_Exp",
                             "user_id": "$userId",
-                            "event_name": "target_hit"
+                            "event_name": {
+                                "${"$"}in": ["target_hit", "target_clicked"]
+                            }
                         },
                         "limit": 100000
                     }
                     """.trimIndent()
                 )
                 
+                android.util.Log.d("AURA_DEBUG", "Query response length: ${response?.length ?: 0}")
+                
                 runOnUiThread {
-                    if (response != null) {
-                        displayUserResults(userId, response)
+                    if (response != null && response.contains("\"docs\"")) {
+                        displayUserResults(userId, response, eventCounts)
                     } else {
-                        Toast.makeText(this, "No data found for user $userId", Toast.LENGTH_SHORT).show()
+                        showNoDataDialog(userId, "No trial events found.\n\nEvents in DB: $eventCounts")
                     }
                 }
             } catch (e: Exception) {
+                android.util.Log.e("AURA_DEBUG", "Query error", e)
                 runOnUiThread {
                     Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                 }
@@ -531,54 +840,349 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    private fun displayUserResults(userId: String, jsonResponse: String) {
+    data class TrialLogEntry(
+        val timestamp: Long,
+        val condition: String,
+        val trial: Int,
+        val reactionTimeMs: Long,
+        val distance: Double,
+        val targetSize: Int,
+        val indexOfDifficulty: Double = 0.0
+    )
+
+    private fun displayUserResults(userId: String, jsonResponse: String, eventCounts: Map<String, Int> = emptyMap()) {
         try {
-            val conditionTimes = mutableMapOf<String, MutableList<Long>>()
+            val trials = mutableListOf<TrialLogEntry>()
             
-            val conditionPattern = "\"condition\":\"([^\"]+)\"".toRegex()
-            val reactionTimePattern = "\"reaction_time_ms\":(\\d+)".toRegex()
+            android.util.Log.d("AURA_DEBUG", "Response preview: ${jsonResponse.take(500)}")
             
-            val conditions = conditionPattern.findAll(jsonResponse).map { it.groupValues[1] }.toList()
-            val times = reactionTimePattern.findAll(jsonResponse).map { it.groupValues[1].toLong() }.toList()
+            // Mango query returns: {"docs":[{doc1},{doc2},...]}
+            // Each doc is a complete document with _id, condition, event_name, payload, timestamp, user_id
             
-            conditions.forEachIndexed { index, condition ->
-                if (index < times.size) {
-                    conditionTimes.getOrPut(condition) { mutableListOf() }.add(times[index])
-                }
+            // Find the docs array
+            val docsStart = jsonResponse.indexOf("\"docs\":[")
+            if (docsStart == -1) {
+                android.util.Log.e("AURA_DEBUG", "No docs array found")
+                showResultsDialog(userId, emptyList(), eventCounts)
+                return
             }
             
-            val resultsText = buildString {
-                append("Participant: $userId\n\n")
+            // Extract just the array content
+            val arrayStart = docsStart + 8 // after "docs":[
+            var depth = 1
+            var arrayEnd = arrayStart
+            while (depth > 0 && arrayEnd < jsonResponse.length) {
+                when (jsonResponse[arrayEnd]) {
+                    '[' -> depth++
+                    ']' -> depth--
+                }
+                arrayEnd++
+            }
+            
+            val docsArray = jsonResponse.substring(arrayStart, arrayEnd - 1)
+            android.util.Log.d("AURA_DEBUG", "Docs array length: ${docsArray.length}")
+            
+            // Now split into individual documents
+            // Each document starts with { and we need to track depth
+            var i = 0
+            while (i < docsArray.length) {
+                // Find start of next document
+                while (i < docsArray.length && docsArray[i] != '{') i++
+                if (i >= docsArray.length) break
                 
-                if (conditionTimes.isEmpty()) {
-                    append("No trial data found")
-                } else {
-                    conditionTimes.entries.sortedBy { it.key }.forEach { (condition, times) ->
-                        val avgTime = times.average()
-                        val minTime = times.minOrNull() ?: 0
-                        val maxTime = times.maxOrNull() ?: 0
-                        
-                        append("$condition (${times.size} trials):\n")
-                        append("  Avg: ${avgTime.toInt()}ms\n")
-                        append("  Min: ${minTime}ms\n")
-                        append("  Max: ${maxTime}ms\n\n")
+                val docStart = i
+                var docDepth = 0
+                var docEnd = i
+                
+                // Find end of this document by tracking brace depth
+                while (docEnd < docsArray.length) {
+                    when (docsArray[docEnd]) {
+                        '{' -> docDepth++
+                        '}' -> {
+                            docDepth--
+                            if (docDepth == 0) {
+                                docEnd++
+                                break
+                            }
+                        }
                     }
-                    
-                    val allTimes = conditionTimes.values.flatten()
-                    append("Overall:\n")
-                    append("  Total trials: ${allTimes.size}\n")
-                    append("  Avg: ${allTimes.average().toInt()}ms")
+                    docEnd++
+                }
+                
+                val docContent = docsArray.substring(docStart, docEnd)
+                i = docEnd
+                
+                // Parse this document
+                val trial = parseTrialFromDoc(docContent)
+                if (trial != null) {
+                    trials.add(trial)
+                    android.util.Log.d("AURA_DEBUG", "Parsed trial: ${trial.condition} #${trial.trial} = ${trial.reactionTimeMs}ms")
                 }
             }
             
-            AlertDialog.Builder(this)
-                .setTitle("Results: User $userId")
-                .setMessage(resultsText)
-                .setPositiveButton("OK", null)
-                .show()
+            android.util.Log.d("AURA_DEBUG", "Total parsed trials: ${trials.size}")
+            
+            // Sort by timestamp
+            val sortedTrials = trials.sortedBy { it.timestamp }
+            
+            // Build custom dialog with professional layout
+            showResultsDialog(userId, sortedTrials, eventCounts)
                 
         } catch (e: Exception) {
+            android.util.Log.e("AURA_DEBUG", "Parse error", e)
             Toast.makeText(this, "Parse error: ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+    
+    private fun parseTrialFromDoc(docContent: String): TrialLogEntry? {
+        // Check event type
+        val eventNameMatch = "\"event_name\"\\s*:\\s*\"([^\"]+)\"".toRegex().find(docContent)
+        val eventName = eventNameMatch?.groupValues?.get(1) ?: return null
+        
+        if (eventName != "target_hit" && eventName != "target_clicked") return null
+        
+        // Extract condition (first occurrence, which is the outer one)
+        val conditionMatch = "\"condition\"\\s*:\\s*\"([^\"]+)\"".toRegex().find(docContent)
+        val condition = conditionMatch?.groupValues?.get(1) ?: return null
+        
+        // Extract timestamp
+        val timestampMatch = "\"timestamp\"\\s*:\\s*(\\d+)".toRegex().find(docContent)
+        val timestamp = timestampMatch?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+        
+        // Find payload section - need to handle nested braces
+        val payloadStart = docContent.indexOf("\"payload\"")
+        if (payloadStart == -1) return null
+        
+        val braceStart = docContent.indexOf('{', payloadStart)
+        if (braceStart == -1) return null
+        
+        var depth = 0
+        var braceEnd = braceStart
+        while (braceEnd < docContent.length) {
+            when (docContent[braceEnd]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) break
+                }
+            }
+            braceEnd++
+        }
+        
+        val payloadContent = docContent.substring(braceStart, braceEnd + 1)
+        
+        // Extract values from payload - handle integers, decimals, and .0 suffix
+        val trialMatch = "\"trial(?:_number)?\"\\s*:\\s*([\\d.]+)".toRegex().find(payloadContent)
+        val trial = trialMatch?.groupValues?.get(1)?.toDoubleOrNull()?.toInt() ?: 0
+        
+        val timeMatch = "\"(?:reaction_time_ms|time_ms)\"\\s*:\\s*([\\d.]+)".toRegex().find(payloadContent)
+        val reactionTime = timeMatch?.groupValues?.get(1)?.toDoubleOrNull()?.toLong() ?: 0L
+        
+        val distanceMatch = "\"distance_(?:px|error_px)\"\\s*:\\s*([\\d.E-]+)".toRegex().find(payloadContent)
+        val distance = distanceMatch?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+        
+        val sizeMatch = "\"target_size_(?:dp|px)\"\\s*:\\s*([\\d.]+)".toRegex().find(payloadContent)
+        val targetSize = sizeMatch?.groupValues?.get(1)?.toDoubleOrNull()?.toInt() ?: 0
+        
+        val idMatch = "\"index_of_difficulty\"\\s*:\\s*([\\d.E-]+)".toRegex().find(payloadContent)
+        val indexOfDifficulty = idMatch?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+        
+        if (condition.isEmpty() || reactionTime <= 0) return null
+        
+        return TrialLogEntry(timestamp, condition, trial, reactionTime, distance, targetSize, indexOfDifficulty)
+    }
+    
+    private fun showResultsDialog(userId: String, trials: List<TrialLogEntry>, eventCounts: Map<String, Int>) {
+        val context = this
+        
+        // Create main container
+        val mainLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(0, 0, 0, 0)
+        }
+        
+        // Header section (fixed, not scrollable)
+        val headerLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#F5F5F5"))
+            setPadding(48, 32, 48, 24)
+        }
+        
+        val headerTitle = TextView(context).apply {
+            text = "Participant $userId"
+            textSize = 20f
+            setTextColor(Color.parseColor("#1976D2"))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        }
+        headerLayout.addView(headerTitle)
+        
+        val headerSubtitle = TextView(context).apply {
+            text = if (trials.isNotEmpty()) {
+                "${trials.size} trials • ${trials.groupBy { it.condition }.size} conditions"
+            } else {
+                "No trial data"
+            }
+            textSize = 14f
+            setTextColor(Color.parseColor("#666666"))
+        }
+        headerLayout.addView(headerSubtitle)
+        
+        mainLayout.addView(headerLayout)
+        
+        // Divider
+        val divider = android.view.View(context).apply {
+            setBackgroundColor(Color.parseColor("#E0E0E0"))
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 2
+            )
+        }
+        mainLayout.addView(divider)
+        
+        // Scrollable content
+        val scrollView = android.widget.ScrollView(context).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                0, 1f
+            )
+        }
+        
+        val contentLayout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 48)
+        }
+        
+        if (trials.isEmpty()) {
+            // No data message
+            val noDataText = TextView(context).apply {
+                text = "No trial data found for this participant.\n\n" +
+                       "Events in database:\n" +
+                       eventCounts.entries.joinToString("\n") { "• ${it.key}: ${it.value}" }
+                textSize = 14f
+                setTextColor(Color.parseColor("#666666"))
+            }
+            contentLayout.addView(noDataText)
+        } else {
+            // Group by condition in order of appearance
+            val conditionsInOrder = trials.map { it.condition }.distinct()
+            
+            conditionsInOrder.forEach { condition ->
+                val conditionTrials = trials.filter { it.condition == condition }
+                
+                // Condition header
+                val condHeader = TextView(context).apply {
+                    text = "▸ $condition"
+                    textSize = 16f
+                    setTextColor(Color.parseColor("#333333"))
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    setPadding(0, 24, 0, 8)
+                }
+                contentLayout.addView(condHeader)
+                
+                // Condition stats bar
+                val times = conditionTrials.map { it.reactionTimeMs }
+                val statsBar = TextView(context).apply {
+                    text = "Avg: ${times.average().toInt()}ms  •  Min: ${times.minOrNull()}ms  •  Max: ${times.maxOrNull()}ms"
+                    textSize = 12f
+                    setTextColor(Color.parseColor("#1976D2"))
+                    setPadding(16, 0, 0, 12)
+                }
+                contentLayout.addView(statsBar)
+                
+                // Trial list with alternating background
+                conditionTrials.forEachIndexed { index, trial ->
+                    val trialRow = android.widget.LinearLayout(context).apply {
+                        orientation = android.widget.LinearLayout.HORIZONTAL
+                        setPadding(16, 12, 16, 12)
+                        if (index % 2 == 0) {
+                            setBackgroundColor(Color.parseColor("#FAFAFA"))
+                        }
+                    }
+                    
+                    val trialNum = TextView(context).apply {
+                        text = "#${trial.trial}"
+                        textSize = 13f
+                        setTextColor(Color.parseColor("#888888"))
+                        layoutParams = android.widget.LinearLayout.LayoutParams(80, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT)
+                    }
+                    trialRow.addView(trialNum)
+                    
+                    val trialTime = TextView(context).apply {
+                        text = "${trial.reactionTimeMs}ms"
+                        textSize = 14f
+                        setTextColor(Color.parseColor("#333333"))
+                        setTypeface(typeface, android.graphics.Typeface.BOLD)
+                        layoutParams = android.widget.LinearLayout.LayoutParams(0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+                    trialRow.addView(trialTime)
+                    
+                    if (trial.distance > 0) {
+                        val trialDist = TextView(context).apply {
+                            text = "${trial.distance.toInt()}px"
+                            textSize = 12f
+                            setTextColor(Color.parseColor("#888888"))
+                        }
+                        trialRow.addView(trialDist)
+                    }
+                    
+                    contentLayout.addView(trialRow)
+                }
+            }
+            
+            // Overall summary section
+            val summaryDivider = android.view.View(context).apply {
+                setBackgroundColor(Color.parseColor("#1976D2"))
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 3
+                ).apply { topMargin = 32 }
+            }
+            contentLayout.addView(summaryDivider)
+            
+            val summaryTitle = TextView(context).apply {
+                text = "OVERALL SUMMARY"
+                textSize = 14f
+                setTextColor(Color.parseColor("#1976D2"))
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setPadding(0, 16, 0, 16)
+            }
+            contentLayout.addView(summaryTitle)
+            
+            val allTimes = trials.map { it.reactionTimeMs }
+            val summaryStats = TextView(context).apply {
+                text = buildString {
+                    append("Total Trials: ${allTimes.size}\n")
+                    append("Average RT: ${allTimes.average().toInt()}ms\n")
+                    append("Minimum RT: ${allTimes.minOrNull()}ms\n")
+                    append("Maximum RT: ${allTimes.maxOrNull()}ms")
+                }
+                textSize = 14f
+                setTextColor(Color.parseColor("#333333"))
+                setLineSpacing(8f, 1f)
+            }
+            contentLayout.addView(summaryStats)
+        }
+        
+        scrollView.addView(contentLayout)
+        mainLayout.addView(scrollView)
+        
+        // Create dialog
+        val dialog = AlertDialog.Builder(context, android.R.style.Theme_Material_Light_Dialog_Alert)
+            .setView(mainLayout)
+            .setPositiveButton("Close", null)
+            .create()
+        
+        dialog.window?.setLayout(
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            (resources.displayMetrics.heightPixels * 0.8).toInt()
+        )
+        
+        dialog.show()
+    }
+    
+    private fun showNoDataDialog(userId: String, reason: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Results: User $userId")
+            .setMessage("No trial data found\n\nReason: $reason")
+            .setPositiveButton("OK", null)
+            .show()
     }
 }

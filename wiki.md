@@ -1,178 +1,367 @@
-====== Gruppe 2: A(ccessibility) U(ser) R(esearch) A(nalytics) -AURA ======
+====== Gruppe 2: A(ccessibility) U(ser) R(esearch) A(nalytics) – AURA ======
 
-# **Projekttitel: Generische Logging-Komponente für Prototypen**
+**Projekttitel:** Generische Logging-Komponente für Prototypen
 
-**Autor**: [[alex.kollmer@stud.uni-hannover.de|Alex Kollmer]] [[hevend.hussein@stud.uni-hannover.de|Hevend Hussein]]
+**Autoren:** [[alex.kollmer@stud.uni-hannover.de|Alex Kollmer]], [[hevend.hussein@stud.uni-hannover.de|Hevend Hussein]]
 
-**Betreuer**: [[lukas.koehler@hci.uni-hannover.de|Lukas Köhler]]
+**Betreuer:** [[lukas.koehler@hci.uni-hannover.de|Lukas Köhler]]
 
-**Bearbeitungszeit**: 23.10.2025 - 15.01.2026
+**Bearbeitungszeit:** 23.10.2025 – 15.01.2026
 
-**Git-Repository**:
+**Git-Repository:** [[https://github.com/kollmeralex/Aura]]
 
-**Folien Abschlusspräsentation**:
+**Beispiel-Implementierung (Fitts' Law):** [[https://github.com/kollmeralex/Aura/tree/fittslaws]]
 
----
-
-**1. Worum geht es in dem Projekt? (Projektbeschreibung)**
-
-Motivation und Problemstellung
-In der experimentellen Mensch-Computer-Interaktion (HCI) ist die präzise Erfassung von Nutzerinteraktionen die Grundlage für die Validierung von Hypothesen und die Evaluation von Prototypen. Entwickler und Forschende, die Nutzerstudien durchführen, stehen jedoch oft vor der Herausforderung, Logging-Funktionalitäten manuell in ihre Prototypen zu implementieren. Dieser Prozess ist nicht nur zeitaufwendig, sondern auch fehleranfällig und führt häufig zu inkonsistenten Datenformaten über verschiedene Projekte hinweg. Es fehlt ein standardisiertes, leicht zu integrierbares Werkzeug, das den gesamten Prozess der Datenerfassung von der Sitzungssteuerung bis zur Datenspeicherung abstrahiert.
-
-Die Lösung: Die AURA-Bibliothek
-Dieses Projekt zielt auf die Konzeption und Entwicklung von **AURA (Accessibility User Research Analytics)** ab – einer leichtgewichtigen und flexiblen Logging-Bibliothek für Android-Anwendungen. AURA soll es Forschenden und Entwicklern ermöglichen, mit minimalem Aufwand ein robustes und standardisiertes Logging in ihre Studien-Prototypen zu integrieren.
-
-Der Kernvorteil von AURA liegt nicht darin, _was_ geloggt wird (dies definiert der Forscher selbst im Code), sondern _wie_ es geloggt wird. Die Bibliothek nimmt dem Entwickler die Komplexität der Sitzungsverwaltung, des Metadaten-Managements und der zuverlässigen Datenspeicherung ab.
-
-Funktionsumfang und Architektur der AURA-Bibliothek
-AURA wird als einfach zu importierendes Modul konzipiert, das eine klare und intuitive API (Application Programming Interface) bereitstellt. Der geplante Funktionsumfang umfasst:
-
-**Kernfunktionen:**
-
-- **Sitzungs- und Experiment-Management:**
-
-  - `AURA.setupExperiment(config: Object)`: Eine initiale Funktion, um das Experiment zu konfigurieren. Hier werden Metadaten wie die `ExperimentID` und die Anzahl der `conditions` (z.B. 2 für eine A/B-Studie) festgelegt.
-
-- **Flexible Event-Erfassung:**
-
-  - `AURA.logEvent(eventName: String, data: Object)`: Die zentrale Funktion der Bibliothek. Der Entwickler kann an jeder beliebigen Stelle im Code einen Event loggen, ihm einen eindeutigen Namen geben (z.B. `"button_clicked"`, `"task_completed"`) und ein beliebiges JSON-Objekt mit kontextspezifischen Daten anhängen (z.B. `{ "button_id": "submit", "time_to_complete_ms": 1234 }`).
-
-- **Automatische Metadaten-Anreicherung:**
-
-  - Jedes mit `logEvent` erfasste Ereignis wird von AURA automatisch mit essenziellen Metadaten angereichert. Dazu gehören:
-    - Ein präziser **Zeitstempel** (Unix-Timestamp in Millisekunden).
-    - Die bei der Konfiguration festgelegte **UserID**, **ExperimentID** und **Condition**.
-    - Der **Paketname der App**.
-    - Eine eindeutige **Event-ID**.
-
-- **Zuverlässige Datenspeicherung:**
-  - Alle erfassten Events einer Sitzung werden lokal auf dem Gerät in einer klar strukturierten **JSON-Datei** gespeichert. Dies garantiert, dass keine Daten bei Netzwerkproblemen oder App-Abstürzen verloren gehen.
-  - Die Dateinamen werden systematisch generiert (z.B. `ExperimentID_UserID_Condition_Timestamp.json`), um eine einfache Zuordnung zu gewährleisten.
-
-Demonstration und Anwendungsfall
-Um den Nutzen und die einfache Anwendung der AURA-Bibliothek zu demonstrieren, wird im Rahmen des Projekts ein Prototyp für eine experimentelle Studie entwickelt. Dieser Prototyp wird zwei einfache Experimente implementieren, in denen AURA integriert wird:
-
-- **Experiment 1 (Fitts' Law):** Eine klassische HCI-Studie, bei der Probanden auf unterschiedlich große und weit entfernte Ziele klicken müssen. AURA wird hier genutzt, um Klick-Positionen, Ziel-Koordinaten und die Zeit zwischen den Klicks zu loggen. Wir werden zwei Bedingungen testen (z.B. kleine vs. große Ziele) und zeigen, wie AURA die Datenerfassung für die Auswertung vereinfacht.
-- **Experiment 2 (UI-Vergleich):** Ein A/B-Test, bei dem zwei verschiedene Layouts für eine Aufgabe verglichen werden (Condition 1 vs. Condition 2). AURA wird verwendet, um die benötigte Zeit, die Anzahl der Klicks und eventuelle Fehler pro Bedingung zu erfassen.
-
-In der Abschlusspräsentation wird die Code-Integration von AURA in diesen Prototypen live gezeigt, um zu verdeutlichen, wie wenige Zeilen Code nötig sind, um ein voll funktionsfähiges Experimenten-Logging aufzusetzen.
-
-Projektziel
-Das finale Ergebnis ist eine gut dokumentierte, wiederverwendbare Logging-Bibliothek (AURA), die zukünftigen Studierenden und Forschungsprojekten als Grundlage für ihre eigenen Nutzerstudien dienen kann. Ergänzt wird dies durch einen lauffähigen Prototypen, der als Best-Practice-Beispiel für die Integration und den Nutzen der Bibliothek dient.
+**JitPack:** [[https://jitpack.io/#kollmeralex/Aura]]
 
 ---
 
-**2. Vorgehensweise (Technischer Ansatz)**
+===== 1. Projektbeschreibung =====
 
-Der technische Ansatz des Projekts gliedert sich in zwei Kernbereiche: die Entwicklung der Android-Bibliothek als einfach integrierbare Komponente und die Konfiguration der serverseitigen Datenspeicherung mit CouchDB.
+==== Motivation und Problemstellung ====
 
-a) Android-Komponente (AURA-Bibliothek)
+In der experimentellen Mensch-Computer-Interaktion (HCI) ist die präzise Erfassung von Nutzerinteraktionen die Grundlage für die Validierung von Hypothesen und die Evaluation von Prototypen. Entwickler und Forschende, die Nutzerstudien durchführen, stehen jedoch oft vor der Herausforderung, Logging-Funktionalitäten manuell in ihre Prototypen zu implementieren. Dieser Prozess ist zeitaufwendig, fehleranfällig und führt häufig zu inkonsistenten Datenformaten über verschiedene Projekte hinweg.
 
-Die AURA-Bibliothek wird als eigenständiges Android-Modul in Kotlin entwickelt. Der Fokus liegt darauf, die Integration für Forschende und Entwickler so einfach wie möglich zu gestalten.
+==== Die Lösung: AURA ====
 
-**Distribution und Integration:**
+**AURA (Android User Research Analytics)** ist eine leichtgewichtige Logging-Bibliothek für Android-Anwendungen. Sie ermöglicht Forschenden und Entwicklern, mit minimalem Aufwand ein robustes und standardisiertes Logging in ihre Studien-Prototypen zu integrieren.
 
-**Methode 1: JitPack**
-Die AURA-Bibliothek wird über JitPack veröffentlicht, einen Build-Service für Git-Repositories. Dies ermöglicht eine einfache Integration über Gradle ohne manuelle Dateiverwaltung.
+Der Kernvorteil von AURA liegt nicht darin, //was// geloggt wird (dies definiert der Forscher selbst), sondern //wie// es geloggt wird. Die Bibliothek abstrahiert die Komplexität der Sitzungsverwaltung, des Metadaten-Managements, der Datenspeicherung und des Counterbalancings.
 
-Integration in ein Projekt:
+==== Kernfunktionen ====
 
-1.  JitPack-Repository zur `settings.gradle.kts` hinzufügen:
-
-    ```kotlin
-    dependencyResolutionManagement {
-        repositories {
-            google()
-            mavenCentral()
-            maven { url = uri("https://jitpack.io") }
-        }
-    }
-    ```
-
-2.  Abhängigkeit zur `build.gradle.kts` (oder `libs.versions.toml`) der App hinzufügen:
-    ```kotlin
-    dependencies {
-        implementation("com.github.kollmeralex:Aura:v1.1.0")
-    }
-    ```
-
-**Methode 2: Lokale .aar-Datei (Notlösung)**
-Falls JitPack nicht verfügbar ist, kann die Bibliothek auch als lokale `.aar`-Datei eingebunden werden:
-
-1.  Die `.aar`-Datei in das `libs`-Verzeichnis des Zielprojekts kopieren
-2.  In der `build.gradle.kts`-Datei der App deklarieren:
-    ```kotlin
-    dependencies {
-        implementation(files("libs/aura-logging-library.aar"))
-    }
-    ```
-
-Diese Methode eignet sich für Offline-Entwicklung oder wenn keine externe Abhängigkeit gewünscht ist.
-
-b) Server-Komponente (CouchDB)
-
-Als Backend für die Online-Speicherung der gesammelten Log-Daten wird **Apache CouchDB** eingesetzt. Diese NoSQL-Datenbank wurde aufgrund ihrer spezifischen Eigenschaften ausgewählt, die ideal zu den Anforderungen des Projekts passen.
+- **Experiment-Management:** Konfiguration von ExperimentID, UserID und Conditions
+- **Flexible Event-Erfassung:** Beliebige Events mit JSON-Payloads loggen
+- **Automatische Metadaten:** Zeitstempel, IDs und Condition werden automatisch angehängt
+- **Duale Speicherung:** Lokale JSONL-Dateien + CouchDB-Synchronisierung
+- **Counterbalancing:** Integrierte Unterstützung für Within-Subject Designs
+- **ID-Validierung:** Prüfung ob Teilnehmer-ID bereits verwendet wurde
 
 ---
 
-**3. Related Work (Verwandte Arbeiten)**
+===== 2. Technischer Ansatz =====
 
-Die Entwicklung einer Logging-Bibliothek ist primär eine ingenieurtechnische Aufgabe, die darauf abzielt, Forschungspraktiken zu unterstützen. Daher gibt es keine spezifische Forschungsliteratur, die sich exakt mit der Konzeption eines solchen Tools für HCI-Studien befasst. Die wissenschaftliche Grundlage für dieses Projekt stammt stattdessen aus der allgemeinen Forschung zum Thema Software-Logging. Diese lässt sich im Wesentlichen in zwei Bereiche gliedern: erstens, die Untersuchung von Logging-Praktiken, insbesondere **welche Daten und Metadaten** erfasst werden sollten, und zweitens, die Analyse von **Herausforderungen und Risiken**, die mit dem Logging verbunden sind.
+==== Android-Komponente ====
 
-**Logging-Praktiken und die Wichtigkeit von Metadaten**
-Ein zentraler Forschungsschwerpunkt ist die Frage, wie und was Entwickler loggen. Studien zeigen, dass Logging-Praktiken in mobilen Anwendungen oft inkonsistent und weniger verbreitet sind, was zu Problemen bei der späteren Analyse führt. Der entscheidende Faktor für eine systematische Auswertung ist die Erfassung von strukturierten Daten und kontextbezogenen **Metadaten**. Anstatt unstrukturierter Textnachrichten, die für eine maschinelle Verarbeitung ungeeignet sind, ermöglicht ein standardisiertes Format (wie JSON) die direkte Analyse. Metadaten wie ein **Zeitstempel**, eine **UserID** oder die **Experiment-Condition** geben den reinen Interaktionsdaten erst ihren wissenschaftlichen Kontext und machen sie vergleich- und gruppierbar. Die AURA-Bibliothek adressiert diese Erkenntnis, indem sie die Erfassung dieser essenziellen Metadaten automatisiert und standardisiert.
+Die AURA-Bibliothek ist als eigenständiges Android-Modul in Kotlin entwickelt und wird über JitPack distribuiert.
+
+**Integration in ein Projekt:**
+
+1. JitPack-Repository zur ''settings.gradle.kts'' hinzufügen:
+
+<code kotlin>
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+</code>
+
+2. Abhängigkeit zur ''build.gradle.kts'' hinzufügen:
+
+<code kotlin>
+dependencies {
+    implementation("com.github.kollmeralex:Aura:v1.4.0")
+}
+</code>
+
+==== Server-Komponente (CouchDB) ====
+
+Als Backend wird **Apache CouchDB** eingesetzt. Die NoSQL-Datenbank eignet sich aufgrund ihrer JSON-basierten Dokumentenstruktur und der HTTP-API ideal für das Speichern von Log-Daten. AURA kommuniziert mit CouchDB über Retrofit und nutzt Mango-Queries zum Abfragen von Teilnehmerdaten.
+
+==== Architektur ====
+
+<code>
+┌─────────────────┐      ┌─────────────────┐
+│   Android App   │      │    CouchDB      │
+│                 │      │                 │
+│  ┌───────────┐  │      │  ┌───────────┐  │
+│  │   AURA    │◄─┼──────┼─►│  Database │  │
+│  │  Library  │  │ HTTP │  │   (aura)  │  │
+│  └───────────┘  │      │  └───────────┘  │
+│        │        │      │                 │
+│        ▼        │      └─────────────────┘
+│  ┌───────────┐  │
+│  │   Local   │  │
+│  │   JSONL   │  │
+│  └───────────┘  │
+└─────────────────┘
+</code>
+
+---
+
+===== 3. Counterbalancing =====
+
+Ein zentrales Feature von AURA ist die integrierte Counterbalancing-Unterstützung. In Within-Subject Designs absolvieren alle Teilnehmer alle Bedingungen, was zu Reihenfolgeeffekten führen kann. AURA bietet fünf Modi, um diese systematisch zu kontrollieren.
+
+==== Verfügbare Modi ====
+
+^ Modus ^ Beschreibung ^ Anwendungsfall ^
+| ''LATIN_SQUARE'' | Balancierte Rotation der Bedingungen | Standard für Within-Subject Designs |
+| ''FULL_PERMUTATION'' | Alle n! möglichen Reihenfolgen | Kleine Anzahl an Bedingungen (≤4) |
+| ''RANDOM'' | Zufällige Reihenfolge pro Teilnehmer | Wenn Reihenfolge keine Rolle spielt |
+| ''CUSTOM'' | Feste Reihenfolge definieren | Spezifische Anforderungen |
+| ''LEGACY'' | Einfache odd/even Umkehrung | Abwärtskompatibilität |
+
+==== Latin Square ====
+
+Für n Bedingungen werden n Gruppen erstellt. Jede Bedingung erscheint an jeder Position gleich oft. Teilnehmer werden via ''participantIndex % n'' den Gruppen zugewiesen.
+
+<code kotlin>
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.LATIN_SQUARE
+)
+</code>
+
+Beispiel mit 3 Bedingungen (A, B, C):
+<code>
+Gruppe 0: A → B → C
+Gruppe 1: B → C → A
+Gruppe 2: C → A → B
+</code>
+
+==== Full Permutation ====
+
+Generiert alle n! möglichen Reihenfolgen. Achtung: Nur für kleine n praktikabel (3 Bedingungen = 6 Gruppen, 4 = 24 Gruppen).
+
+<code kotlin>
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.FULL_PERMUTATION
+)
+</code>
+
+==== Random ====
+
+Zufällige Reihenfolge für jeden Teilnehmer. Der Seed basiert auf der Teilnehmer-ID, sodass die gleiche ID immer die gleiche Reihenfolge ergibt (reproduzierbar).
+
+<code kotlin>
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.RANDOM
+)
+</code>
+
+==== Custom ====
+
+Definiert eine feste Reihenfolge für alle oder individuelle Reihenfolgen pro Teilnehmer-ID.
+
+<code kotlin>
+// Gleiche Reihenfolge für alle
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.CUSTOM,
+    customOrders = mapOf("default" to listOf("Medium", "Small", "Large"))
+)
+
+// Individuelle Reihenfolgen
+counterbalanceConfig = Aura.CounterbalanceConfig(
+mode = Aura.CounterbalanceMode.CUSTOM,
+customOrders = mapOf(
+"P01" to listOf("A", "B", "C"),
+"P02" to listOf("C", "B", "A")
+)
+)
+</code>
+
+==== Legacy ====
+
+Einfache Umkehrung basierend auf gerader/ungerader Teilnehmer-ID (nur 2 Gruppen).
+
+<code kotlin>
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.LEGACY
+)
+</code>
+
+==== Start-/End-Bedingung ====
+
+Unabhängig vom Modus kann eine feste Start- oder Endbedingung definiert werden:
+
+<code kotlin>
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.LATIN_SQUARE,
+    startCondition = "Training",
+    endCondition = "Questionnaire"
+)
+</code>
+
+---
+
+===== 4. ID-Validierung =====
+
+AURA prüft vor dem Start eines Experiments, ob die eingegebene Teilnehmer-ID bereits in der Datenbank existiert. Dies verhindert versehentliche Doppelungen und Datenverlust.
+
+==== Funktionsweise ====
+
+Die Methode ''checkUserIdExists()'' fragt via Mango-Query alle existierenden UserIDs von CouchDB ab:
+
+<code kotlin>
+val existingIds = Aura.checkUserIdExists(userId)
+</code>
+
+Falls die ID bereits existiert, zeigt die Demo-App einen Warndialog mit:
+
+- Liste aller bereits verwendeten IDs
+- Vorgeschlagene nächste ID (höchste numerische ID + 1)
+- Möglichkeit, trotzdem fortzufahren oder eine andere ID zu wählen
+
+---
+
+===== 5. API-Verwendung =====
+
+==== Experiment initialisieren ====
+
+<code kotlin>
+val config = Aura.Config(
+    context = applicationContext,
+    experimentID = "Fitts_Law_Exp",
+    userID = participantId,
+    couchDbUrl = "https://couchdb.hci.uni-hannover.de",
+    dbName = "aura",
+    username = BuildConfig.COUCHDB_USER,
+    password = BuildConfig.COUCHDB_PASSWORD,
+    availableConditions = listOf("Small", "Medium", "Large"),
+    counterbalanceConfig = Aura.CounterbalanceConfig(
+        mode = Aura.CounterbalanceMode.LATIN_SQUARE
+    )
+)
+
+Aura.setupExperiment(config)
+</code>
+
+==== Counterbalanced Order abrufen ====
+
+<code kotlin>
+val result = Aura.getCounterbalancedOrder()
+val conditionOrder = result.conditionOrder  // z.B. ["Medium", "Large", "Small"]
+val groupIndex = result.groupIndex          // z.B. 1
+</code>
+
+==== Condition setzen ====
+
+<code kotlin>
+Aura.setCondition("Small")
+</code>
+
+==== Events loggen ====
+
+<code kotlin>
+Aura.logEvent("target_hit", mapOf(
+    "trial" to 5,
+    "reaction_time_ms" to 543,
+    "distance_px" to 342.7,
+    "target_size_dp" to 48,
+    "index_of_difficulty" to 2.47
+))
+</code>
+
+==== Event-Datenstruktur ====
+
+Jedes Event wird automatisch mit Metadaten angereichert:
+
+<code json>
+{
+  "experimentID": "Fitts_Law_Exp",
+  "userID": "P07",
+  "condition": "Small",
+  "eventName": "target_hit",
+  "timestamp": 1736438400000,
+  "payload": {
+    "trial": 5,
+    "reaction_time_ms": 543,
+    "distance_px": 342.7
+  }
+}
+</code>
+
+---
+
+===== 6. Demo-Anwendung: Fitts' Law Experiment =====
+
+Als Demonstration wurde ein Fitts' Law Experiment implementiert. Teilnehmer klicken auf Targets unterschiedlicher Größe, wobei Reaktionszeit und Distanz gemessen werden.
+
+**Bedingungen:**
+
+- Small: 48dp
+- Medium: 96dp
+- Large: 144dp
+
+**Trials pro Condition:** 10
+
+**Geloggte Events:**
+
+- ''experiment_started''
+- ''condition_started''
+- ''target_hit'' (pro Trial)
+- ''condition_completed''
+- ''experiment_completed''
+
+Die vollständige Implementierung ist im Branch ''fittslaws'' verfügbar: [[https://github.com/kollmeralex/Aura/tree/fittslaws]]
+
+---
+
+===== 7. Related Work =====
+
+Die wissenschaftliche Grundlage für dieses Projekt stammt aus der Forschung zum Thema Software-Logging:
+
+**Logging-Praktiken und Metadaten**
+
+Studien zeigen, dass Logging-Praktiken in mobilen Anwendungen oft inkonsistent sind. Der entscheidende Faktor für eine systematische Auswertung ist die Erfassung von strukturierten Daten und kontextbezogenen Metadaten. AURA adressiert dies durch automatisierte Metadaten-Erfassung und ein standardisiertes JSON-Format.
 
 [[https://ink.library.smu.edu.sg/cgi/viewcontent.cgi?article=5498&context=sis_research]]
 
-**Herausforderungen: Sicherheit, Performance und Analyse**
-Die Forschung beleuchtet auch die mit dem Logging verbundenen Risiken. Ein wesentliches Problem ist die **Sicherheit und der Datenschutz**, da durch unachtsames Logging sensible Nutzerdaten offengelegt werden können (Datenlecks). Ein weiterer Aspekt ist die **Energie- und System-Performance**. Obwohl der Einfluss des Loggens meist als gering eingestuft wird, kann er bei sehr hoher Frequenz, wie sie in interaktiven Studien auftreten kann, relevant werden. Schließlich existiert eine Vielzahl von Tools zur **automatisierten Log-Analyse**, deren Effektivität jedoch oft durch fehlende Standardisierung der Log-Formate begrenzt wird. AURA begegnet diesen Herausforderungen durch eine reine On-Device-Speicherung zur besseren Datenkontrolle, eine effiziente lokale Pufferung zur Minimierung der Performance-Last und die Bereitstellung eines konsistenten Datenformats zur Vereinfachung der späteren Analyse.
+**Herausforderungen: Sicherheit und Performance**
+
+Wesentliche Probleme beim Logging sind Datenschutz und Performance-Einfluss. AURA begegnet diesen durch lokale Speicherung zur Datenkontrolle und effiziente Pufferung zur Minimierung der Performance-Last.
+
 [[https://link.springer.com/article/10.1007/s10664-019-09687-9]]
 
 ---
 
-**4. Zeitplan (Wochenplan)**
+===== 8. Features & Limitationen =====
 
-**Bearbeitungszeit**: 23.10.2025 - 15.01.2026
+==== Features ====
 
-| Woche | Datum | Geplante Aufgaben | Tatsächlicher Status |
-| **01** | 23.10. - 29.10. | **Kick-off & Einarbeitung:** Projektdefinition finalisieren, Einarbeitung in die Erstellung von Android-Bibliotheken (`.aar`) und die Grundlagen von CouchDB. | ✅ DONE |
-| **02** | 30.10. - 05.11. | **Literaturrecherche:** Analyse von existierenden Logging-Frameworks (Related Work) und Best Practices. | ✅ DONE |
-| **03** | 06.11. - 12.11. | **Architektur & Design:** Detaillierte Systemarchitektur entwerfen, API-Design (`setupExperiment`, `logEvent`) und JSON-Datenmodell finalisieren. | ✅ DONE |
-| **04** | 13.11. - 19.11. | **Setup & Prototyping:** Projekt-Setup (App-Modul + Bibliotheks-Modul), erste API-Implementierung, Testaufrufe loggen Events nach Logcat. | ✅ DONE |
-| **05** | 20.11. - 26.11. | **Implementierung (Kern I):** Kernlogik entwickeln: `logEvent`-Funktion mit automatischer Anreicherung von Metadaten (Timestamp, IDs etc.). | ✅ DONE |
-| **06** | 27.11. - 03.12. | **Implementierung (Kern II):** Lokale Speicherung implementieren: Gesammelte Events werden in eine JSON-Datei auf dem Gerät geschrieben. | ✅ DONE |
-| **07** | 04.12. - 10.12. | **Implementierung (Demo-App):** Fitts' Law Experiment mit **Counterbalancing** (Rechtshändig vs. Linkshändig). Implementierung der Logik, die basierend auf Vor-Daten die nächste Condition wählt. | ✅ DONE |
-| **08** | 11.12. - 17.12. | **Datenbank-Integration I:** CouchDB-Server aufsetzen, Netzwerk-Schicht in der Bibliothek implementieren (z.B. mit Ktor/Retrofit). | ✅ DONE |
-| **09** | 18.12. - 24.12. | **Datenbank-Integration II (Bidirektional):** Implementierung des **Rückkanals** (Server -> App). Abrufen von User-Daten für Counterbalancing-Entscheidungen. | ✅ DONE |
-| **10** | 25.12. - 31.12. | _(Weihnachtspause / Puffer)_ | ✅ |
-| **11** | 01.01. - 07.01. | **Test & Verfeinerung:** Umfassende Tests der Bibliothek im Demo-Prototypen (inkl. Offline-Szenarien), Debugging und Erstellung der finalen `.aar`-Datei. | ✅ DONE |
-| **12** | 08.01. - 14.01. | **Dokumentation & Bericht:** Verfassen der API-Dokumentation und einer Integrationsanleitung. Ausarbeitung des Abschlussberichts. | 🔄 IN PROGRESS |
-| **13** | 15.01.2026 | **Abschluss:** Finale Code-Einreichung, Vorbereitung und Halten der Abschlusspräsentation. | ⏳ PENDING |
+- Einfache Initialisierung mit einer Konfiguration
+- Automatische Metadaten-Erfassung (Zeitstempel, IDs, Condition)
+- Offline-First: Lokale JSONL-Speicherung als Fallback
+- CouchDB-Synchronisierung
+- Bidirektionaler Datenfluss (Server → App für Counterbalancing)
+- 5 Counterbalancing-Modi
+- ID-Validierung mit Vorschlag für nächste ID
+- Start-/End-Bedingung definierbar
 
----
+==== Limitationen ====
 
-**5. Anleitung: Wie unsere Logging-App genutzt wird**
+- Aktuell nur für Android
+- Benötigt Netzwerkverbindung für initialen Counterbalancing-Status
 
 ---
 
-**6. Features & Limitationen**
+===== 9. Zeitplan =====
 
-**Features:**
+**Bearbeitungszeit:** 23.10.2025 – 15.01.2026
 
-- ✅ **Easy Setup:** Einzeilige Initialisierung (`Aura.setupExperiment`).
-- ✅ **Auto-Metadaten:** Automatische Erfassung von Zeitstempel, UserID, etc.
-- ✅ **Offline-First:** Lokale Speicherung (JSONL) mit automatischer Queue für Sync.
-- ✅ **CouchDB Sync:** Automatische Synchronisierung mit dem Backend via WorkManager.
-- ✅ **Bidirektionaler Datenfluss:** Abrufen von User-Status vom Server (`getCompletedConditions()`).
-- ✅ **Counterbalancing-Support:** `getSuggestedConditionOrder()` und `getServerAwareConditionOrder()` für AB/BA Testing.
-- ✅ **Demo-App:** Fitts' Law Experiment mit RightHand/LeftHand Conditions.
-
-**Limitationen:**
-
-- Aktuell nur für Android.
-- Benötigt Netzwerkverbindung für den initialen Status-Abgleich (für Counterbalancing).
-- SSL-Zertifikatvalidierung ist für Entwicklung deaktiviert (Trust All).
+^ Woche ^ Datum ^ Aufgaben ^ Status ^
+| 01 | 23.10. – 29.10. | Kick-off, Einarbeitung Android-Bibliotheken, CouchDB | DONE |
+| 02 | 30.10. – 05.11. | Literaturrecherche, Related Work | DONE |
+| 03 | 06.11. – 12.11. | Architektur, API-Design, Datenmodell | DONE |
+| 04 | 13.11. – 19.11. | Projekt-Setup, erste API-Implementierung | DONE |
+| 05 | 20.11. – 26.11. | logEvent mit Metadaten-Anreicherung | DONE |
+| 06 | 27.11. – 03.12. | Lokale JSONL-Speicherung | DONE |
+| 07 | 04.12. – 10.12. | Demo-App: Fitts' Law mit Counterbalancing | DONE |
+| 08 | 11.12. – 17.12. | CouchDB-Integration, Netzwerk-Schicht | DONE |
+| 09 | 18.12. – 24.12. | Bidirektionaler Datenfluss, Counterbalancing-Modi | DONE |
+| 10 | 25.12. – 31.12. | Weihnachtspause | – |
+| 11 | 01.01. – 07.01. | Tests, Debugging, ID-Validierung | DONE |
+| 12 | 08.01. – 14.01. | Dokumentation, README, Wiki | IN PROGRESS |
+| 13 | 15.01.2026 | Abschlusspräsentation | – |
 
 ---
 
-**7. Projektergebnisse (Deliverables)**
+===== 10. Projektergebnisse =====
+
+- **AURA Library v1.4.0** – Veröffentlicht auf JitPack
+- **Demo-App** – Fitts' Law Experiment mit vollständiger AURA-Integration
+- **Dokumentation** – README mit Installationsanleitung und API-Referenz
+- **Öffentliches Repository** – [[https://github.com/kollmeralex/Aura]]

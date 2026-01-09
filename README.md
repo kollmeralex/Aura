@@ -1,24 +1,27 @@
-# Fitts' Law Experiment Example
+# Fitts' Law Experiment – AURA Beispielimplementierung
 
-This branch contains a reference implementation of a Fitts' Law experiment using the AURA logging library (v1.1.1).
+Diese Beispiel-App demonstriert die Verwendung der [AURA Library](https://github.com/kollmeralex/Aura) anhand eines Fitts' Law Experiments.
 
-## Overview
+## Über das Experiment
 
-The application implements a standard Fitts' Law pointing experiment with three target size conditions:
+Das Experiment implementiert eine klassische Fitts' Law Pointing-Aufgabe mit drei Target-Größen:
 
-- Small: 48dp
-- Medium: 96dp
-- Large: 144dp
+| Condition | Target-Größe |
+|-----------|--------------|
+| Small | 48dp |
+| Medium | 96dp |
+| Large | 144dp |
 
-Participants complete 10 trials per condition. The order of conditions is automatically counterbalanced based on participant ID to control for learning effects.
+Pro Condition werden 10 Trials durchgeführt. Die Reihenfolge der Conditions wird automatisch counterbalanced, um Lerneffekte zu kontrollieren.
 
-## Implementation
+## AURA Integration
 
-### Dependencies
+### Dependency
 
-Add the JitPack repository to `settings.gradle.kts`:
+Die App nutzt AURA über JitPack:
 
 ```kotlin
+// settings.gradle.kts
 dependencyResolutionManagement {
     repositories {
         google()
@@ -26,53 +29,23 @@ dependencyResolutionManagement {
         maven { url = uri("https://jitpack.io") }
     }
 }
-```
 
-Add AURA dependency in `build.gradle.kts`:
-
-```kotlin
+// app/build.gradle.kts
 dependencies {
-    implementation("com.github.kollmeralex:Aura:v1.1.1")
+    implementation("com.github.kollmeralex:Aura:v1.4.0")
 }
 ```
 
-### Configuration
+### Konfiguration
 
-Create `local.properties` file:
+CouchDB-Credentials werden in `local.properties` gespeichert:
 
 ```properties
-couchdb.user=your_username
-couchdb.password=your_password
+couchdb.user=benutzername
+couchdb.password=passwort
 ```
 
-Configure BuildConfig in `build.gradle.kts`:
-
-```kotlin
-android {
-    buildTypes {
-        debug {
-            val properties = Properties()
-            val localPropertiesFile = rootProject.file("local.properties")
-            if (localPropertiesFile.exists()) {
-                properties.load(localPropertiesFile.inputStream())
-            }
-
-            buildConfigField("String", "COUCHDB_USER",
-                "\"${properties.getProperty("couchdb.user", "")}\"")
-            buildConfigField("String", "COUCHDB_PASSWORD",
-                "\"${properties.getProperty("couchdb.password", "")}\"")
-        }
-    }
-
-    buildFeatures {
-        buildConfig = true
-    }
-}
-```
-
-### Usage
-
-Initialize AURA at experiment start:
+### Experiment-Setup
 
 ```kotlin
 val config = Aura.Config(
@@ -83,54 +56,43 @@ val config = Aura.Config(
     dbName = "aura",
     username = BuildConfig.COUCHDB_USER,
     password = BuildConfig.COUCHDB_PASSWORD,
-    availableConditions = listOf("Small", "Medium", "Large")
+    availableConditions = listOf("Small", "Medium", "Large"),
+    counterbalanceConfig = Aura.CounterbalanceConfig(
+        mode = Aura.CounterbalanceMode.LATIN_SQUARE
+    )
 )
 
 Aura.setupExperiment(config)
+val order = Aura.getCounterbalancedOrder()
 ```
 
-Get counterbalanced condition order:
+### Event-Logging
+
+Bei jedem Trial werden folgende Daten erfasst:
 
 ```kotlin
-val order = Aura.getSuggestedConditionOrder()
-// Returns ["Small", "Medium", "Large"] or ["Large", "Medium", "Small"]
-// based on participant ID parity
-```
-
-Log experiment events:
-
-```kotlin
-Aura.setCondition("Small")
-
 Aura.logEvent("target_hit", mapOf(
-    "trial" to 5,
-    "reaction_time_ms" to 543,
-    "distance_px" to 342.7,
-    "target_size_dp" to 48,
-    "index_of_difficulty" to 2.47
+    "trial" to trialNumber,
+    "reaction_time_ms" to reactionTime,
+    "distance_px" to distance,
+    "target_size_dp" to targetSize,
+    "index_of_difficulty" to id
 ))
 ```
 
-## Data Logging
+## Geloggte Events
 
-All events are logged locally and automatically synced to CouchDB when network is available.
-
-### Event Types
-
-**experiment_started**
-
+### experiment_started
 ```json
 {
   "event_name": "experiment_started",
   "participant_id": "7",
   "condition_order": "Small,Medium,Large",
-  "trials_per_condition": 10,
-  "device": "Pixel 6"
+  "trials_per_condition": 10
 }
 ```
 
-**target_hit** (per trial)
-
+### target_hit (pro Trial)
 ```json
 {
   "event_name": "target_hit",
@@ -143,8 +105,7 @@ All events are logged locally and automatically synced to CouchDB when network i
 }
 ```
 
-**condition_completed**
-
+### condition_completed
 ```json
 {
   "event_name": "condition_completed",
@@ -154,43 +115,55 @@ All events are logged locally and automatically synced to CouchDB when network i
 }
 ```
 
-All events include automatic metadata:
-
-- experiment_id
-- user_id
-- timestamp
-- condition (if set)
+### experiment_completed
+```json
+{
+  "event_name": "experiment_completed",
+  "total_conditions": 3,
+  "total_trials": 30
+}
+```
 
 ## Fitts' Law
 
-The application calculates Index of Difficulty (ID) for each trial:
+Der Index of Difficulty (ID) wird für jeden Trial berechnet:
 
 ```
 ID = log₂(D/W + 1)
 ```
 
-where D is distance to target and W is target width.
+- D = Distanz zum Target (px)
+- W = Target-Breite (px)
 
-According to Fitts' Law, movement time (MT) should increase linearly with ID:
+Nach Fitts' Law steigt die Bewegungszeit (MT) linear mit dem ID:
 
 ```
 MT = a + b × ID
 ```
 
-## Project Structure
+## Projektstruktur
 
 ```
 app/
 ├── src/main/
 │   ├── java/com/example/aura/
-│   │   └── MainActivity.kt
+│   │   ├── MainActivity.kt        # Hauptmenü
+│   │   └── FittsLawActivity.kt    # Experiment-Screen
 │   └── res/
 │       └── layout/
-│           └── activity_main.xml
+│           ├── activity_main.xml
+│           └── activity_fitts_law.xml
 └── build.gradle.kts
 ```
 
-## References
+## App starten
 
-- Main repository: [github.com/kollmeralex/Aura](https://github.com/kollmeralex/Aura)
+1. Repository klonen
+2. `local.properties` mit CouchDB-Credentials anlegen
+3. App auf Android-Gerät oder Emulator installieren
+4. Teilnehmer-ID eingeben und Experiment starten
+
+## Links
+
+- AURA Library: [github.com/kollmeralex/Aura](https://github.com/kollmeralex/Aura)
 - JitPack: [jitpack.io/#kollmeralex/Aura](https://jitpack.io/#kollmeralex/Aura)

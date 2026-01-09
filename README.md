@@ -1,22 +1,36 @@
-# AURA (Accessibility User Research Analytics)
+# AURA – Android User Research Analytics
 
 [![](https://jitpack.io/v/kollmeralex/Aura.svg)](https://jitpack.io/#kollmeralex/Aura)
 
-Eine leichtgewichtige Android-Logging-Bibliothek für HCI-Forschung und Nutzerstudien.
+AURA ist eine Android-Logging-Bibliothek für HCI-Forschung und Nutzerstudien. Die Library ermöglicht das einfache Erfassen von Experimentdaten mit automatischer Synchronisierung zu CouchDB.
 
 ## Features
 
-- 🚀 **Easy Setup**: Einzeilen-Initialisierung mit `setupExperiment()`
-- 📊 **Auto-Metadata**: Automatische Erfassung von Zeitstempel, UserID, ExperimentID und Condition
-- 🔄 **CouchDB Integration**: Direkte Backend-Speicherung mit automatischer Synchronisierung
-- 🔒 **Offline-First**: Lokales Caching für zuverlässige Datenerfassung
-- 📝 **Flexible Events**: Logge beliebige Events mit individuellen Daten-Payloads
+- Einfache Initialisierung mit einer Konfiguration
+- Automatische Metadaten (Zeitstempel, UserID, ExperimentID, Condition)
+- CouchDB-Integration mit automatischer Synchronisierung
+- Offline-First: Lokales JSONL-Caching bei fehlender Netzwerkverbindung
+- Flexibles Event-Logging mit beliebigen Payloads
+- Integriertes Counterbalancing mit verschiedenen Modi
+
+---
+
+## Anforderungen
+
+| Anforderung | Version |
+|-------------|---------|
+| Android API | 24+ (Android 7.0) |
+| Kotlin | 1.9.0+ |
+| Gradle | 8.0+ |
+| CouchDB | 3.x empfohlen |
+
+---
 
 ## Installation
 
-### Schritt 1: JitPack Repository hinzufügen
+### 1. JitPack Repository hinzufügen
 
-Füge JitPack zu deiner `settings.gradle.kts` hinzu:
+In `settings.gradle.kts`:
 
 ```kotlin
 dependencyResolutionManagement {
@@ -28,119 +42,231 @@ dependencyResolutionManagement {
 }
 ```
 
-### Schritt 2: Dependency hinzufügen
+### 2. Dependency hinzufügen
 
-Füge AURA zu deiner `app/build.gradle.kts` hinzu:
+In `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.github.kollmeralex:Aura:v1.1.0")
+    implementation("com.github.kollmeralex:Aura:v1.4.0")
 }
 ```
 
-### Schritt 3: Clear Text Traffic aktivieren (für lokale Tests)
+### 3. CouchDB-Credentials konfigurieren
 
-Falls du eine lokale CouchDB verwendest, füge dies zu deiner `AndroidManifest.xml` hinzu:
+Erstelle eine `local.properties` Datei im Projekt-Root:
 
-```xml
-<application
-    android:usesCleartextTraffic="true"
-    ... >
+```properties
+couchdb.user=dein_benutzername
+couchdb.password=dein_passwort
 ```
 
-## Quick Start
+In `app/build.gradle.kts` die Credentials als BuildConfig-Felder einbinden:
 
 ```kotlin
-import com.example.aura.lib.Aura
+import java.util.Properties
 
-class MainActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
 
-        // Experiment konfigurieren
-        val config = Aura.Config(
-            experimentID = "MyExperiment",
-            condition = "ConditionA",
-            userID = "Participant01",
-            couchDbUrl = "http://192.168.1.100:5984",
-            dbName = "study_logs",
-            username = "admin",
-            password = "password"
-        )
-
-        // AURA initialisieren
-        Aura.setupExperiment(config)
-
-        // Events loggen
-        Aura.logEvent("app_started", emptyMap())
-
-        Aura.logEvent("button_clicked", mapOf(
-            "button_id" to "submit",
-            "screen" to "LoginScreen",
-            "timestamp" to System.currentTimeMillis()
-        ))
+android {
+    defaultConfig {
+        buildConfigField("String", "COUCHDB_USER", "\"${localProperties.getProperty("couchdb.user", "")}\"")
+        buildConfigField("String", "COUCHDB_PASSWORD", "\"${localProperties.getProperty("couchdb.password", "")}\"")
+    }
+    
+    buildFeatures {
+        buildConfig = true
     }
 }
 ```
 
+---
+
 ## Dokumentation
 
-Für detaillierte Integrations-Anweisungen (auf Deutsch) siehe [GUIDE.md](GUIDE.md).
+### Grundlegende Verwendung
 
-## Anforderungen
+```kotlin
+import com.example.aura.lib.Aura
 
-- **Android API 24+** (Android 7.0 Nougat)
-- **Kotlin 1.9.0+**
-- **CouchDB-Instanz** für Backend-Speicherung
+// Experiment konfigurieren
+val config = Aura.Config(
+    context = applicationContext,
+    experimentID = "MeinExperiment",
+    userID = participantId,
+    couchDbUrl = "https://couchdb.example.com",
+    dbName = "study_logs",
+    username = BuildConfig.COUCHDB_USER,
+    password = BuildConfig.COUCHDB_PASSWORD,
+    availableConditions = listOf("Condition_A", "Condition_B", "Condition_C")
+)
+
+// AURA initialisieren
+Aura.setupExperiment(config)
+
+// Counterbalanced Order abrufen
+val order = Aura.getCounterbalancedOrder()
+println("Condition-Reihenfolge: ${order.conditionOrder}")
+
+// Condition setzen
+Aura.setCondition("Condition_A")
+
+// Events loggen
+Aura.logEvent("trial_completed", mapOf(
+    "trial" to 5,
+    "reaction_time_ms" to 423,
+    "correct" to true
+))
+```
+
+### Counterbalancing-Modi
+
+AURA bietet verschiedene Modi zur Kontrolle von Reihenfolgeeffekten:
+
+| Modus | Beschreibung | Anwendungsfall |
+|-------|--------------|----------------|
+| `LATIN_SQUARE` | Balancierte Rotation der Bedingungen | Standard für Within-Subject Designs |
+| `FULL_PERMUTATION` | Alle n! möglichen Reihenfolgen | Kleine Anzahl an Bedingungen (≤4) |
+| `RANDOM` | Zufällige Reihenfolge pro Teilnehmer | Wenn Reihenfolge keine Rolle spielt |
+| `CUSTOM` | Feste Reihenfolge definieren | Spezifische Anforderungen |
+| `LEGACY` | Einfache odd/even Umkehrung | Abwärtskompatibilität |
+
+#### Latin Square (Standard)
+
+Für n Bedingungen werden n Gruppen erstellt, wobei jede Bedingung an jeder Position gleich oft vorkommt:
+
+```kotlin
+val config = Aura.Config(
+    // ...
+    counterbalanceConfig = Aura.CounterbalanceConfig(
+        mode = Aura.CounterbalanceMode.LATIN_SQUARE
+    )
+)
+```
+
+Beispiel mit 3 Bedingungen (A, B, C):
+```
+Gruppe 0: A → B → C
+Gruppe 1: B → C → A
+Gruppe 2: C → A → B
+```
+
+#### Custom Mode
+
+Für eine feste Reihenfolge unabhängig vom Teilnehmer:
+
+```kotlin
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.CUSTOM,
+    customOrders = mapOf("default" to listOf("Medium", "Small", "Large"))
+)
+```
+
+#### Start-/End-Bedingung festlegen
+
+Optional kann eine feste Start- oder Endbedingung definiert werden:
+
+```kotlin
+counterbalanceConfig = Aura.CounterbalanceConfig(
+    mode = Aura.CounterbalanceMode.LATIN_SQUARE,
+    startCondition = "Training",
+    endCondition = "Questionnaire"
+)
+```
+
+---
 
 ## Event-Datenstruktur
 
-Jedes geloggte Event enthält automatisch:
+Jedes geloggte Event enthält automatisch folgende Felder:
 
 ```json
 {
-  "experimentID": "MyExperiment",
-  "userID": "Participant01",
-  "condition": "ConditionA",
-  "eventName": "button_clicked",
-  "timestamp": 1732723200000,
+  "experimentID": "MeinExperiment",
+  "userID": "P01",
+  "condition": "Condition_A",
+  "eventName": "trial_completed",
+  "timestamp": 1736438400000,
   "payload": {
-    "button_id": "submit",
-    "screen": "LoginScreen"
+    "trial": 5,
+    "reaction_time_ms": 423,
+    "correct": true
   }
 }
 ```
 
+Die Daten werden sowohl lokal als JSONL-Datei gespeichert als auch automatisch zu CouchDB synchronisiert.
+
+---
+
 ## Anwendungsfälle
 
-AURA ist perfekt für:
+- **Fitts' Law Experimente**: Erfassung von Klickpositionen, Reaktionszeiten, Target-Größen
+- **A/B Testing**: Vergleich verschiedener UI-Varianten
+- **Usability-Studien**: Task-Completion-Zeiten, Fehlerquoten
+- **Within-Subject Designs**: Automatisches Counterbalancing
+- **Mobile Interaktionsstudien**: Touch-Events, Scrollverhalten
 
-- **A/B Testing**: Vergleiche verschiedene UI-Bedingungen
-- **Fitts' Law-Studien**: Logge Klick-Positionen und Timings
-- **User Behavior Research**: Erfasse Interaktionsmuster
-- **Usability-Studien**: Sammle Task-Completion-Metriken
-- **Mobile HCI-Experimente**: Alle Forschungsarbeiten, die Event-Logging benötigen
+---
 
 ## Repository-Struktur
 
-- `/aura` - Library-Modul (publiziert auf JitPack)
-- `/app` - Beispiel-App zur Demonstration der Nutzung
+```
+Aura/
+├── aura/                    # Library-Modul (auf JitPack veröffentlicht)
+│   └── src/main/java/
+│       └── com/example/aura/lib/
+│           ├── Aura.kt          # Hauptklasse
+│           ├── network/
+│           │   ├── CouchDbApi.kt
+│           │   └── LogEntry.kt
+│           └── worker/
+│               └── UploadWorker.kt
+├── app/                     # Demo-App
+│   └── src/main/java/
+│       └── com/example/aura/
+│           ├── MainActivity.kt
+│           └── FittsLawActivity.kt
+├── build.gradle.kts
+├── settings.gradle.kts
+└── README.md
+```
 
-## Autoren
+---
 
-- **Alex Kollmer** - [@kollmeralex](https://github.com/kollmeralex)
-- **Hevend Hussein**
+## Beispiel-Projekt
 
-## Danksagungen
+Der Branch [`fittslaws`](https://github.com/kollmeralex/Aura/tree/fittslaws) enthält eine vollständige Beispielimplementierung eines Fitts' Law Experiments mit:
 
-Teil eines HCI-Lab-Projekts an der Leibniz Universität Hannover.
+- Drei Target-Größen (Small, Medium, Large)
+- Automatischem Counterbalancing
+- Reaktionszeit-Messung
+- CouchDB-Synchronisierung
 
-Betreut von Lukas Köhler.
+---
 
-## Support
+## Lokale Entwicklung
 
-Bei Fragen oder Problemen bitte ein Issue auf [GitHub](https://github.com/kollmeralex/Aura/issues) erstellen.
+Für die Entwicklung an der Library selbst kann das lokale Modul verwendet werden:
 
-## Lizenz
+```kotlin
+// In settings.gradle.kts
+include(":app")
+include(":aura")
 
-Dieses Projekt wurde im Rahmen eines Universitätsprojekts entwickelt.
+// In app/build.gradle.kts
+dependencies {
+    implementation(project(":aura"))
+}
+```
+
+---
+
+## Links
+
+- JitPack: [jitpack.io/#kollmeralex/Aura](https://jitpack.io/#kollmeralex/Aura)
+- Beispiel-Branch: [github.com/kollmeralex/Aura/tree/fittslaws](https://github.com/kollmeralex/Aura/tree/fittslaws)
